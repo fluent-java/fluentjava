@@ -1,0 +1,15 @@
+# FluentJava Target Classes
+# Each line is a fully qualified FluentXxx class name.
+# The javac plugin auto-discovers all public static methods from these classes.
+#
+# To add a new target type:
+#   1. Create a new FluentXxx class (e.g., FluentMap) in fluentjava-runtime
+#   2. Add its FQN here
+#   3. That's it — the javac plugin will auto-rewrite calls
+#
+io.fluentjava.string.FluentString
+io.fluentjava.list.FluentList
+io.fluentjava.object.FluentObject
+io.fluentjava.map.FluentMap
+io.fluentjava.number.FluentNumber
+io.fluentjava.date.FluentDate

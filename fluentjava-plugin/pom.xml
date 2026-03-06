@@ -1,0 +1,100 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0
+                             https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>io.fluentjava</groupId>
+        <artifactId>fluentjava-parent</artifactId>
+        <version>1.0.0</version>
+    </parent>
+
+    <artifactId>fluentjava-plugin</artifactId>
+    <packaging>jar</packaging>
+
+    <name>FluentJava :: Javac Plugin</name>
+    <description>
+        Compile-time javac plugin (-Xplugin:FluentJava) that rewrites fluent
+        method calls in the AST. NOT needed at runtime — scope:provided only.
+        Uses com.sun.source.util.Plugin (public API) and com.sun.tools.javac.tree
+        (compile-time only). Zero annotation required in user code.
+    </description>
+
+    <dependencies>
+        <!-- Needed to resolve FluentString/FluentList class names in the registry -->
+        <dependency>
+            <groupId>io.fluentjava</groupId>
+            <artifactId>fluentjava-runtime</artifactId>
+        </dependency>
+
+        <!-- Testing -->
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <resources>
+            <!-- Exclude META-INF/services during process-resources phase
+                 to prevent javac from discovering the plugin during its own compilation.
+                 The service file is added back by maven-resources-plugin in prepare-package. -->
+            <resource>
+                <directory>src/main/resources</directory>
+                <excludes>
+                    <exclude>META-INF/services/**</exclude>
+                </excludes>
+            </resource>
+        </resources>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <configuration>
+                    <!-- The plugin uses com.sun.tools.javac.* which are in jdk.compiler -->
+                    <compilerArgs>
+                        <arg>--add-exports</arg>
+                        <arg>jdk.compiler/com.sun.tools.javac.tree=ALL-UNNAMED</arg>
+                        <arg>--add-exports</arg>
+                        <arg>jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED</arg>
+                        <arg>--add-exports</arg>
+                        <arg>jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED</arg>
+                        <arg>--add-exports</arg>
+                        <arg>jdk.compiler/com.sun.tools.javac.code=ALL-UNNAMED</arg>
+                    </compilerArgs>
+                    <fork>true</fork>
+                </configuration>
+            </plugin>
+
+            <!-- Copy META-INF/services AFTER compilation to avoid
+                 javac trying to load the plugin during its own build -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-resources-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>copy-service-descriptor</id>
+                        <phase>process-classes</phase>
+                        <goals>
+                            <goal>copy-resources</goal>
+                        </goals>
+                        <configuration>
+                            <outputDirectory>${project.build.outputDirectory}</outputDirectory>
+                            <resources>
+                                <resource>
+                                    <directory>src/main/resources</directory>
+                                    <includes>
+                                        <include>META-INF/services/**</include>
+                                    </includes>
+                                </resource>
+                            </resources>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+</project>
