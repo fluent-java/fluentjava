@@ -9,9 +9,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
-import java.util.function.ToDoubleFunction;
+import java.util.concurrent.ThreadLocalRandom;
+import java.util.function.BiConsumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
+import java.util.function.ToDoubleFunction;
+import java.util.function.ToIntFunction;
+import java.util.function.ToLongFunction;
 
 /**
  * Fluent utility methods for {@link java.util.List}.
@@ -743,5 +747,304 @@ public final class FluentList {
             set.addAll(other);
         }
         return List.copyOf(set);
+    }
+
+    // ────────────────────────────────────────────────────────────────
+    // New methods
+    // ────────────────────────────────────────────────────────────────
+
+    /**
+     * Returns the second element of the list, or {@code null} if the list
+     * has fewer than 2 elements or is {@code null}.
+     *
+     * @param <T>  the element type
+     * @param list the list (may be {@code null})
+     * @return the second element, or {@code null}
+     */
+    public static <T> T second(List<T> list) {
+        return (list == null || list.size() < 2) ? null : list.get(1);
+    }
+
+    /**
+     * Returns the third element of the list, or {@code null} if the list
+     * has fewer than 3 elements or is {@code null}.
+     *
+     * @param <T>  the element type
+     * @param list the list (may be {@code null})
+     * @return the third element, or {@code null}
+     */
+    public static <T> T third(List<T> list) {
+        return (list == null || list.size() < 3) ? null : list.get(2);
+    }
+
+    /**
+     * Converts the list to a {@link LinkedHashSet} preserving insertion order.
+     *
+     * @param <T>  the element type
+     * @param list the list (may be {@code null})
+     * @return a {@link Set} preserving order, or an empty set if null
+     */
+    public static <T> Set<T> toSet(List<T> list) {
+        if (list == null || list.isEmpty()) {
+            return Set.of();
+        }
+        return Collections.unmodifiableSet(new LinkedHashSet<>(list));
+    }
+
+    /**
+     * Builds a {@link Map} from the list using the given key and value extractors.
+     * Later elements overwrite earlier ones for the same key.
+     *
+     * <p>Inspired by Kotlin's {@code associate} function.</p>
+     *
+     * @param <T>     the element type
+     * @param <K>     the key type
+     * @param <V>     the value type
+     * @param list    the source list (may be {@code null})
+     * @param keyFn   the key extractor function
+     * @param valueFn the value extractor function
+     * @return an unmodifiable map
+     */
+    public static <T, K, V> Map<K, V> associate(List<T> list, Function<T, K> keyFn, Function<T, V> valueFn) {
+        if (list == null || list.isEmpty()) {
+            return Map.of();
+        }
+        Map<K, V> out = new LinkedHashMap<>();
+        for (T item : list) {
+            out.put(keyFn.apply(item), valueFn.apply(item));
+        }
+        return Collections.unmodifiableMap(out);
+    }
+
+    /**
+     * Returns the index of the first element matching the predicate,
+     * or {@code -1} if none match.
+     *
+     * @param <T>  the element type
+     * @param list the source list (may be {@code null})
+     * @param pred the predicate to test elements
+     * @return the index of the first matching element, or -1
+     */
+    public static <T> int indexOfFirst(List<T> list, Predicate<T> pred) {
+        if (list == null || list.isEmpty()) {
+            return -1;
+        }
+        for (int i = 0; i < list.size(); i++) {
+            if (pred.test(list.get(i))) {
+                return i;
+            }
+        }
+        return -1;
+    }
+
+    /**
+     * Returns the index of the last element matching the predicate,
+     * or {@code -1} if none match.
+     *
+     * @param <T>  the element type
+     * @param list the source list (may be {@code null})
+     * @param pred the predicate to test elements
+     * @return the index of the last matching element, or -1
+     */
+    public static <T> int indexOfLast(List<T> list, Predicate<T> pred) {
+        if (list == null || list.isEmpty()) {
+            return -1;
+        }
+        for (int i = list.size() - 1; i >= 0; i--) {
+            if (pred.test(list.get(i))) {
+                return i;
+            }
+        }
+        return -1;
+    }
+
+    /**
+     * Flattens a list of lists into a single list.
+     *
+     * <p>Inspired by Kotlin's {@code flatten}.</p>
+     *
+     * @param <T>  the element type
+     * @param list the list of lists (may be {@code null})
+     * @return an unmodifiable flattened list
+     */
+    public static <T> List<T> flatten(List<List<T>> list) {
+        if (list == null || list.isEmpty()) {
+            return List.of();
+        }
+        List<T> out = new ArrayList<>();
+        for (List<T> inner : list) {
+            if (inner != null) {
+                out.addAll(inner);
+            }
+        }
+        return List.copyOf(out);
+    }
+
+    /**
+     * Returns a random element from the list, or {@code null} if the list
+     * is {@code null} or empty.
+     *
+     * @param <T>  the element type
+     * @param list the source list (may be {@code null})
+     * @return a random element, or {@code null}
+     */
+    public static <T> T randomOrNull(List<T> list) {
+        if (list == null || list.isEmpty()) {
+            return null;
+        }
+        return list.get(ThreadLocalRandom.current().nextInt(list.size()));
+    }
+
+    /**
+     * Iterates over the list with index, invoking the action with
+     * {@code (index, element)} for each entry.
+     *
+     * <p>Inspired by Kotlin's {@code forEachIndexed}.</p>
+     *
+     * @param <T>    the element type
+     * @param list   the source list (may be {@code null})
+     * @param action the action to invoke for each element
+     */
+    public static <T> void forEachIndexed(List<T> list, BiConsumer<Integer, T> action) {
+        if (list == null || list.isEmpty()) {
+            return;
+        }
+        for (int i = 0; i < list.size(); i++) {
+            action.accept(i, list.get(i));
+        }
+    }
+
+    /**
+     * Joins list elements using {@code ", "} separator (calling {@code toString()}).
+     *
+     * @param <T>  the element type
+     * @param list the source list (may be {@code null})
+     * @return a comma-separated string, or {@code ""} if null/empty
+     */
+    public static <T> String toCsv(List<T> list) {
+        if (list == null || list.isEmpty()) {
+            return "";
+        }
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < list.size(); i++) {
+            if (i > 0) sb.append(", ");
+            sb.append(list.get(i));
+        }
+        return sb.toString();
+    }
+
+    /**
+     * Returns a frequency map counting occurrences of each element.
+     *
+     * @param <T>  the element type
+     * @param list the source list (may be {@code null})
+     * @return an unmodifiable map of element to count
+     */
+    public static <T> Map<T, Long> frequencies(List<T> list) {
+        if (list == null || list.isEmpty()) {
+            return Map.of();
+        }
+        Map<T, Long> freq = new LinkedHashMap<>();
+        for (T item : list) {
+            freq.merge(item, 1L, Long::sum);
+        }
+        return Collections.unmodifiableMap(freq);
+    }
+
+    /**
+     * Returns a new shuffled list without modifying the original.
+     *
+     * @param <T>  the element type
+     * @param list the source list (may be {@code null})
+     * @return a new shuffled unmodifiable list
+     */
+    public static <T> List<T> shuffled(List<T> list) {
+        if (list == null || list.isEmpty()) {
+            return List.of();
+        }
+        List<T> copy = new ArrayList<>(list);
+        Collections.shuffle(copy);
+        return List.copyOf(copy);
+    }
+
+    /**
+     * Returns {@code n} random elements from the list without repetition.
+     *
+     * @param <T>  the element type
+     * @param list the source list (may be {@code null})
+     * @param n    the number of elements to sample
+     * @return an unmodifiable list of sampled elements
+     */
+    public static <T> List<T> sample(List<T> list, int n) {
+        if (list == null || list.isEmpty() || n <= 0) {
+            return List.of();
+        }
+        List<T> copy = new ArrayList<>(list);
+        Collections.shuffle(copy);
+        return List.copyOf(copy.subList(0, Math.min(n, copy.size())));
+    }
+
+    /**
+     * Returns sliding windows of the given size over the list.
+     *
+     * <p>Inspired by Kotlin's {@code windowed}.</p>
+     *
+     * <h4>Examples:</h4>
+     * <pre>{@code
+     *   FluentList.windowed(List.of(1,2,3,4), 2)  // [[1,2],[2,3],[3,4]]
+     * }</pre>
+     *
+     * @param <T>  the element type
+     * @param list the source list (may be {@code null})
+     * @param size the window size (must be &gt; 0)
+     * @return an unmodifiable list of unmodifiable windows
+     */
+    public static <T> List<List<T>> windowed(List<T> list, int size) {
+        if (list == null || list.isEmpty() || size <= 0 || size > list.size()) {
+            return List.of();
+        }
+        List<List<T>> out = new ArrayList<>();
+        for (int i = 0; i <= list.size() - size; i++) {
+            out.add(List.copyOf(list.subList(i, i + size)));
+        }
+        return List.copyOf(out);
+    }
+
+    /**
+     * Returns the sum of int values produced by the mapper function.
+     *
+     * @param <T>    the element type
+     * @param list   the source list (may be {@code null})
+     * @param mapper the function to extract int values
+     * @return the sum, or 0 if null/empty
+     */
+    public static <T> int sumOfInt(List<T> list, ToIntFunction<T> mapper) {
+        if (list == null || list.isEmpty()) {
+            return 0;
+        }
+        int sum = 0;
+        for (T item : list) {
+            sum += mapper.applyAsInt(item);
+        }
+        return sum;
+    }
+
+    /**
+     * Returns the sum of long values produced by the mapper function.
+     *
+     * @param <T>    the element type
+     * @param list   the source list (may be {@code null})
+     * @param mapper the function to extract long values
+     * @return the sum, or 0L if null/empty
+     */
+    public static <T> long sumOfLong(List<T> list, ToLongFunction<T> mapper) {
+        if (list == null || list.isEmpty()) {
+            return 0L;
+        }
+        long sum = 0L;
+        for (T item : list) {
+            sum += mapper.applyAsLong(item);
+        }
+        return sum;
     }
 }

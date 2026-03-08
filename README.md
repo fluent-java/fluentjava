@@ -1,6 +1,6 @@
 ﻿# FluentJava
 
-Fluent methods on Java's core types — `String`, `List`, `Map`, `LocalDate`, `Object` — and a chainable validator, all resolved at compile time. No agent, no reflection at runtime, standard bytecode.
+Fluent methods on Java's core types — `String`, `List`, `Map`, `LocalDate`, `Optional`, `Path`, `Object` — and a chainable validator, all resolved at compile time. No agent, no reflection at runtime, standard bytecode.
 
 ```java
 // This is valid Java with FluentJava
@@ -15,6 +15,8 @@ boolean active = user.isNotNull() && user.takeIf(User::isEnabled).isNotNull();
 
 ## Setup
 
+### Maven
+
 ```xml
 <dependencies>
     <dependency>
@@ -22,34 +24,51 @@ boolean active = user.isNotNull() && user.takeIf(User::isEnabled).isNotNull();
         <artifactId>fluentjava-runtime</artifactId>
         <version>1.0.0</version>
     </dependency>
-    <dependency>
-        <groupId>io.fluentjava</groupId>
-        <artifactId>fluentjava-plugin</artifactId>
-        <version>1.0.0</version>
-        <scope>provided</scope>
-    </dependency>
 </dependencies>
 
 <build>
     <plugins>
         <plugin>
-            <groupId>org.apache.maven.plugins</groupId>
-            <artifactId>maven-compiler-plugin</artifactId>
-            <version>3.12.1</version>
-            <configuration>
-                <compilerArgs>
-                    <arg>-Xplugin:FluentJava</arg>
-                    <arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED</arg>
-                    <arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.tree=ALL-UNNAMED</arg>
-                    <arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED</arg>
-                    <arg>-J--add-exports=jdk.compiler/com.sun.tools.javac.code=ALL-UNNAMED</arg>
-                </compilerArgs>
-                <fork>true</fork>
-            </configuration>
+            <groupId>io.fluentjava</groupId>
+            <artifactId>fluentjava-maven-plugin</artifactId>
+            <version>1.0.0</version>
+            <executions>
+                <execution>
+                    <goals><goal>configure</goal></goals>
+                </execution>
+            </executions>
         </plugin>
     </plugins>
 </build>
 ```
+
+### Gradle (Groovy DSL)
+
+```groovy
+plugins {
+    id 'java'
+    id 'io.fluentjava' version '1.0.0'
+}
+
+dependencies {
+    implementation 'io.fluentjava:fluentjava-runtime:1.0.0'
+}
+```
+
+### Gradle (Kotlin DSL)
+
+```kotlin
+plugins {
+    java
+    id("io.fluentjava") version "1.0.0"
+}
+
+dependencies {
+    implementation("io.fluentjava:fluentjava-runtime:1.0.0")
+}
+```
+
+That's it — zero `--add-exports`, zero `maven-compiler-plugin` config, zero `fork` boilerplate.
 
 > **IntelliJ** — Install the `fluentjava-intellij-plugin` to get autocompletion and avoid red underlines on fluent methods in the IDE.
 
@@ -284,6 +303,9 @@ if (payload.isNull()) return Response.badRequest();
 `padStart`  `padEnd`  `take`  `takeLast`  `drop`  `dropLast`
 `removePrefix`  `removeSuffix`  `containsIgnoreCase`  `countOccurrences`
 `toCamelCase`  `toSnakeCase`  `stripAccents`
+`ifBlank`  `ifEmpty`  `splitToList`  `lines`  `toBase64`  `fromBase64`
+`ellipsize`  `toPascalCase`  `toKebabCase`  `matchesPattern`  `digest`
+`toInitials`  `countWords`  `isUrl`  `isIPv4`  `redact`  `toCurrency`
 
 ### List
 `filterBy`  `mapTo`  `flatMap`  `mapNotNull`  `filterNotNull`
@@ -294,6 +316,9 @@ if (payload.isNull()) return Response.badRequest();
 `any`  `all`  `none`  `countBy`
 `takeWhile`  `dropWhile`  `intersect`  `subtract`  `union`
 `isNullOrEmpty`  `orEmpty`
+`second`  `third`  `toSet`  `associate`  `indexOfFirst`  `indexOfLast`
+`flatten`  `randomOrNull`  `forEachIndexed`  `toCsv`  `frequencies`
+`shuffled`  `sample`  `windowed`  `sumOfInt`  `sumOfLong`
 
 ### Validator
 `of(value)`  `ofString(value)`
@@ -306,6 +331,8 @@ if (payload.isNull()) return Response.badRequest();
 `getOrEmpty`  `getOrNull`  `filterKeys`  `filterValues`  `mapValues`  `mapKeys`
 `any`  `all`  `none`  `count`  `toList`  `merge`  `invertMap`
 `isNullOrEmpty`  `orEmpty`
+`getOrPut`  `forEach`  `toSortedMap`  `containsAllKeys`  `flatMapValues`
+`entries`  `filterByValue`
 
 ### Object
 `isNull`  `isNotNull`  `orElse`  `orElseGet`
@@ -318,11 +345,25 @@ if (payload.isNull()) return Response.badRequest();
 `isBefore`  `isAfter`  `isBetween`
 `format`  `atStartOfDay`  `atEndOfDay`
 `toEpochMillis`  `fromEpochMillis`
+`startOfWeek`  `endOfWeek`  `startOfMonth`  `endOfMonth`
+`startOfYear`  `endOfYear`  `nextWeekday`  `age`  `isBusinessDay`
+`toLocalDate`  `toLocalDateTime`  `quarterOf`  `weekOfYear`
 
 ### Number
 `isBetween`  `coerceIn`  `coerceAtLeast`  `coerceAtMost`
 `isPositive`  `isNegative`  `isZero`  `isEven`  `isOdd`
 `roundTo`  `percentOf`  `toOrdinal`
+`toPercentString`  `clamp`  `isPrime`  `factorial`  `digits`
+`toBinary`  `toHex`  `toOctal`
+
+### Optional (`Optional<T>`)
+`toOptional`  `orNull`  `orEmpty`  `ifPresent`
+`mapTo`  `filterBy`  `isPresent`  `isEmpty`  `orElseThrow`
+
+### Path (`java.nio.file.Path`)
+`readText`  `writeText`  `readLines`  `exists`  `extension`
+`nameWithoutExtension`  `fileName`  `copyTo`  `moveTo`
+`deleteIfExists`  `sizeInBytes`  `isDirectory`  `listFiles`  `createDirectories`
 
 ---
 

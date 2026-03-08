@@ -1,7 +1,15 @@
 package io.fluentjava.string;
 
 import java.math.BigDecimal;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.text.Normalizer;
+import java.text.NumberFormat;
+import java.util.ArrayList;
+import java.util.Base64;
+import java.util.Currency;
+import java.util.List;
 import java.util.Locale;
 import java.util.regex.Pattern;
 
@@ -43,6 +51,17 @@ public final class FluentString {
             "^[A-Z0-9._%+-]+@[A-Z0-9.-]+\\.[A-Z]{2,}$",
             Pattern.CASE_INSENSITIVE
     );
+
+    private static final Pattern URL_PATTERN = Pattern.compile(
+            "^https?://[\\w\\-]+(\\.[\\w\\-]+)+([/\\w\\-.~:/?#\\[\\]@!$&'()*+,;=%]*)?$",
+            Pattern.CASE_INSENSITIVE
+    );
+
+    private static final Pattern IPV4_PATTERN = Pattern.compile(
+            "^((25[0-5]|2[0-4]\\d|[01]?\\d\\d?)\\.){3}(25[0-5]|2[0-4]\\d|[01]?\\d\\d?)$"
+    );
+
+    private static final char ELLIPSIS = '\u2026';
 
     /** Utility class â€” cannot be instantiated. */
     private FluentString() {
@@ -837,5 +856,457 @@ public final class FluentString {
         }
         String normalized = Normalizer.normalize(s, Normalizer.Form.NFD);
         return normalized.replaceAll("\\p{M}+", "");
+    }
+
+    // ────────────────────────────────────────────────────────────────
+    // New methods
+    // ────────────────────────────────────────────────────────────────
+
+    /**
+     * Returns {@code defaultValue} if the string is {@code null} or blank,
+     * otherwise returns the string itself.
+     *
+     * <p>Inspired by Kotlin's {@code ifBlank} and Apache {@code StringUtils.defaultIfBlank}.</p>
+     *
+     * <h4>Examples:</h4>
+     * <pre>{@code
+     *   FluentString.ifBlank(null, "default")  // "default"
+     *   FluentString.ifBlank("  ", "default")  // "default"
+     *   FluentString.ifBlank("abc", "default") // "abc"
+     * }</pre>
+     *
+     * @param s            the string to check (may be {@code null})
+     * @param defaultValue the value to return if s is null or blank
+     * @return the original string if not null/blank, otherwise {@code defaultValue}
+     */
+    public static String ifBlank(String s, String defaultValue) {
+        return isBlank(s) ? defaultValue : s;
+    }
+
+    /**
+     * Returns {@code defaultValue} if the string is {@code null} or empty,
+     * otherwise returns the string itself.
+     *
+     * <p>Inspired by Kotlin's {@code ifEmpty}.</p>
+     *
+     * <h4>Examples:</h4>
+     * <pre>{@code
+     *   FluentString.ifEmpty(null, "default")  // "default"
+     *   FluentString.ifEmpty("", "default")    // "default"
+     *   FluentString.ifEmpty("  ", "default")  // "  "
+     *   FluentString.ifEmpty("abc", "default") // "abc"
+     * }</pre>
+     *
+     * @param s            the string to check (may be {@code null})
+     * @param defaultValue the value to return if s is null or empty
+     * @return the original string if not null/empty, otherwise {@code defaultValue}
+     */
+    public static String ifEmpty(String s, String defaultValue) {
+        return (s == null || s.isEmpty()) ? defaultValue : s;
+    }
+
+    /**
+     * Splits the string by the given delimiter and returns a list of non-empty parts.
+     *
+     * <h4>Examples:</h4>
+     * <pre>{@code
+     *   FluentString.splitToList("a,b,c", ",")   // ["a", "b", "c"]
+     *   FluentString.splitToList("a,,b", ",")     // ["a", "b"]
+     *   FluentString.splitToList(null, ",")        // []
+     * }</pre>
+     *
+     * @param s         the string to split (may be {@code null})
+     * @param delimiter the delimiter pattern (must not be {@code null})
+     * @return an unmodifiable list of non-empty parts
+     */
+    public static List<String> splitToList(String s, String delimiter) {
+        if (s == null || s.isEmpty()) {
+            return List.of();
+        }
+        String[] parts = s.split(Pattern.quote(delimiter), -1);
+        List<String> result = new ArrayList<>();
+        for (String part : parts) {
+            if (!part.isEmpty()) {
+                result.add(part);
+            }
+        }
+        return List.copyOf(result);
+    }
+
+    /**
+     * Splits the string by line separators ({@code \n} or {@code \r\n}) and
+     * returns the resulting lines.
+     *
+     * <h4>Examples:</h4>
+     * <pre>{@code
+     *   FluentString.lines("a\nb\nc")     // ["a", "b", "c"]
+     *   FluentString.lines("a\r\nb")      // ["a", "b"]
+     *   FluentString.lines(null)           // []
+     * }</pre>
+     *
+     * @param s the string to split (may be {@code null})
+     * @return an unmodifiable list of lines
+     */
+    public static List<String> lines(String s) {
+        if (s == null) {
+            return List.of();
+        }
+        return List.of(s.split("\\r?\\n", -1));
+    }
+
+    /**
+     * Encodes the string to Base64.
+     *
+     * <h4>Examples:</h4>
+     * <pre>{@code
+     *   FluentString.toBase64("hello")  // "aGVsbG8="
+     *   FluentString.toBase64(null)     // null
+     * }</pre>
+     *
+     * @param s the string to encode (may be {@code null})
+     * @return the Base64-encoded string, or {@code null} if s is null
+     */
+    public static String toBase64(String s) {
+        if (s == null) {
+            return null;
+        }
+        return Base64.getEncoder().encodeToString(s.getBytes(StandardCharsets.UTF_8));
+    }
+
+    /**
+     * Decodes the string from Base64.
+     *
+     * <h4>Examples:</h4>
+     * <pre>{@code
+     *   FluentString.fromBase64("aGVsbG8=")  // "hello"
+     *   FluentString.fromBase64("!!!")         // null (invalid)
+     *   FluentString.fromBase64(null)          // null
+     * }</pre>
+     *
+     * @param s the Base64-encoded string (may be {@code null})
+     * @return the decoded string, or {@code null} if s is null or invalid
+     */
+    public static String fromBase64(String s) {
+        if (s == null) {
+            return null;
+        }
+        try {
+            byte[] decoded = Base64.getDecoder().decode(s);
+            return new String(decoded, StandardCharsets.UTF_8);
+        } catch (IllegalArgumentException e) {
+            return null;
+        }
+    }
+
+    /**
+     * Truncates the string to {@code maxLength} and appends the unicode
+     * ellipsis character ({@code \u2026}) if truncation occurred.
+     *
+     * <h4>Examples:</h4>
+     * <pre>{@code
+     *   FluentString.ellipsize("Hello World", 8) // "Hello W…"
+     *   FluentString.ellipsize("Hi", 10)          // "Hi"
+     *   FluentString.ellipsize(null, 5)            // null
+     * }</pre>
+     *
+     * @param s         the string to ellipsize (may be {@code null})
+     * @param maxLength the maximum length including the ellipsis character
+     * @return the ellipsized string, or {@code null} if s is null
+     */
+    public static String ellipsize(String s, int maxLength) {
+        if (s == null) {
+            return null;
+        }
+        if (maxLength <= 0) {
+            return "";
+        }
+        if (s.length() <= maxLength) {
+            return s;
+        }
+        return s.substring(0, maxLength - 1) + ELLIPSIS;
+    }
+
+    /**
+     * Converts the string to PascalCase.
+     *
+     * <h4>Examples:</h4>
+     * <pre>{@code
+     *   FluentString.toPascalCase("hello world")   // "HelloWorld"
+     *   FluentString.toPascalCase("hello_world")    // "HelloWorld"
+     *   FluentString.toPascalCase("helloWorld")     // "HelloWorld"
+     *   FluentString.toPascalCase(null)              // null
+     * }</pre>
+     *
+     * @param s the string to convert (may be {@code null})
+     * @return the PascalCase string, or {@code null} if s is null
+     */
+    public static String toPascalCase(String s) {
+        if (s == null) {
+            return null;
+        }
+        if (isBlank(s)) {
+            return s;
+        }
+        // Split on camelCase boundaries and non-alphanumeric chars
+        String spaced = s.replaceAll("([a-z0-9])([A-Z])", "$1 $2");
+        String[] parts = spaced.trim().split("[^a-zA-Z0-9]+");
+        StringBuilder out = new StringBuilder();
+        for (String part : parts) {
+            if (part.isEmpty()) {
+                continue;
+            }
+            out.append(part.substring(0, 1).toUpperCase(Locale.ROOT));
+            if (part.length() > 1) {
+                out.append(part.substring(1).toLowerCase(Locale.ROOT));
+            }
+        }
+        return out.toString();
+    }
+
+    /**
+     * Converts the string to kebab-case (lowercase with hyphens).
+     *
+     * <h4>Examples:</h4>
+     * <pre>{@code
+     *   FluentString.toKebabCase("helloWorld")    // "hello-world"
+     *   FluentString.toKebabCase("Hello World")   // "hello-world"
+     *   FluentString.toKebabCase("hello_world")   // "hello-world"
+     *   FluentString.toKebabCase(null)             // null
+     * }</pre>
+     *
+     * @param s the string to convert (may be {@code null})
+     * @return the kebab-case string, or {@code null} if s is null
+     */
+    public static String toKebabCase(String s) {
+        if (s == null) {
+            return null;
+        }
+        if (isBlank(s)) {
+            return s;
+        }
+        String value = s
+                .replaceAll("([a-z0-9])([A-Z])", "$1-$2")
+                .replaceAll("[^a-zA-Z0-9]+", "-")
+                .toLowerCase(Locale.ROOT);
+        return value.replaceAll("^-+|-+$", "");
+    }
+
+    /**
+     * Checks if the entire string matches the given regular expression (null-safe).
+     *
+     * <h4>Examples:</h4>
+     * <pre>{@code
+     *   FluentString.matchesPattern("abc123", "^[a-z0-9]+$")  // true
+     *   FluentString.matchesPattern("abc!", "^[a-z]+$")        // false
+     *   FluentString.matchesPattern(null, ".*")                 // false
+     * }</pre>
+     *
+     * @param s     the string to test (may be {@code null})
+     * @param regex the regular expression pattern
+     * @return {@code true} if the entire string matches the regex
+     */
+    public static boolean matchesPattern(String s, String regex) {
+        if (s == null || regex == null) {
+            return false;
+        }
+        return s.matches(regex);
+    }
+
+    /**
+     * Computes a cryptographic hash of the string using the specified algorithm
+     * and returns the result as a lowercase hex string.
+     *
+     * <h4>Examples:</h4>
+     * <pre>{@code
+     *   FluentString.digest("hello", "SHA-256") // "2cf24dba5fb0a30e..."
+     *   FluentString.digest("hello", "MD5")     // "5d41402abc4b2a76..."
+     *   FluentString.digest(null, "SHA-256")    // null
+     * }</pre>
+     *
+     * @param s         the string to hash (may be {@code null})
+     * @param algorithm the digest algorithm (e.g. "SHA-256", "MD5")
+     * @return the hex-encoded hash, or {@code null} if s is null
+     * @throws IllegalArgumentException if the algorithm is not available
+     */
+    public static String digest(String s, String algorithm) {
+        if (s == null) {
+            return null;
+        }
+        try {
+            MessageDigest md = MessageDigest.getInstance(algorithm);
+            byte[] hash = md.digest(s.getBytes(StandardCharsets.UTF_8));
+            StringBuilder hex = new StringBuilder(hash.length * 2);
+            for (byte b : hash) {
+                hex.append(String.format("%02x", b & 0xff));
+            }
+            return hex.toString();
+        } catch (NoSuchAlgorithmException e) {
+            throw new IllegalArgumentException("Unknown algorithm: " + algorithm, e);
+        }
+    }
+
+    /**
+     * Extracts the initials from the string (first letter of each word, uppercase).
+     *
+     * <h4>Examples:</h4>
+     * <pre>{@code
+     *   FluentString.toInitials("John Doe")           // "JD"
+     *   FluentString.toInitials("jean-pierre martin")  // "JM"
+     *   FluentString.toInitials(null)                   // null
+     * }</pre>
+     *
+     * @param s the string to extract initials from (may be {@code null})
+     * @return the initials as an uppercase string, or {@code null} if s is null
+     */
+    public static String toInitials(String s) {
+        if (s == null) {
+            return null;
+        }
+        if (isBlank(s)) {
+            return "";
+        }
+        String[] words = s.trim().split("[^a-zA-Z0-9]+");
+        StringBuilder initials = new StringBuilder(words.length);
+        for (String word : words) {
+            if (!word.isEmpty()) {
+                initials.append(Character.toUpperCase(word.charAt(0)));
+            }
+        }
+        return initials.toString();
+    }
+
+    /**
+     * Counts the number of words in the string (separated by whitespace).
+     *
+     * <h4>Examples:</h4>
+     * <pre>{@code
+     *   FluentString.countWords("Hello World")  // 2
+     *   FluentString.countWords("  a  b  c  ")  // 3
+     *   FluentString.countWords(null)            // 0
+     *   FluentString.countWords("")              // 0
+     * }</pre>
+     *
+     * @param s the string to count words in (may be {@code null})
+     * @return the number of words, 0 if null or blank
+     */
+    public static int countWords(String s) {
+        if (isBlank(s)) {
+            return 0;
+        }
+        return s.trim().split("\\s+").length;
+    }
+
+    /**
+     * Checks if the string is a valid HTTP or HTTPS URL.
+     *
+     * <h4>Examples:</h4>
+     * <pre>{@code
+     *   FluentString.isUrl("https://example.com")  // true
+     *   FluentString.isUrl("ftp://example.com")     // false
+     *   FluentString.isUrl(null)                     // false
+     * }</pre>
+     *
+     * @param s the string to check (may be {@code null})
+     * @return {@code true} if the string is a valid HTTP(S) URL
+     */
+    public static boolean isUrl(String s) {
+        if (isBlank(s)) {
+            return false;
+        }
+        return URL_PATTERN.matcher(s.trim()).matches();
+    }
+
+    /**
+     * Checks if the string is a valid IPv4 address (0.0.0.0 to 255.255.255.255).
+     *
+     * <h4>Examples:</h4>
+     * <pre>{@code
+     *   FluentString.isIPv4("192.168.1.1")  // true
+     *   FluentString.isIPv4("999.1.1.1")    // false
+     *   FluentString.isIPv4(null)            // false
+     * }</pre>
+     *
+     * @param s the string to check (may be {@code null})
+     * @return {@code true} if the string is a valid IPv4 address
+     */
+    public static boolean isIPv4(String s) {
+        if (isBlank(s)) {
+            return false;
+        }
+        return IPV4_PATTERN.matcher(s.trim()).matches();
+    }
+
+    /**
+     * Partially redacts sensitive data. Keeps the first character and the last
+     * 4 characters, replacing the middle with {@code ***}.
+     *
+     * <h4>Examples:</h4>
+     * <pre>{@code
+     *   FluentString.redact("john@email.com")      // "j***@email.com"  (email-aware)
+     *   FluentString.redact("4111111111111111")     // "4***1111"
+     *   FluentString.redact("ab")                   // "ab"  (too short)
+     *   FluentString.redact(null)                   // null
+     * }</pre>
+     *
+     * @param s the string to redact (may be {@code null})
+     * @return the redacted string, or {@code null} if s is null
+     */
+    public static String redact(String s) {
+        if (s == null) {
+            return null;
+        }
+        if (s.length() <= 5) {
+            return s;
+        }
+        // Email-aware redaction
+        int atIdx = s.indexOf('@');
+        if (atIdx > 0) {
+            return s.charAt(0) + "***" + s.substring(atIdx);
+        }
+        // General redaction: keep first char + last 4 chars
+        return s.charAt(0) + "***" + s.substring(s.length() - 4);
+    }
+
+    /**
+     * Formats the string as a currency amount using the given currency code.
+     *
+     * <h4>Examples:</h4>
+     * <pre>{@code
+     *   FluentString.toCurrency("1234.56", "EUR")  // locale-formatted EUR string
+     *   FluentString.toCurrency("1234.56", "USD")  // locale-formatted USD string
+     *   FluentString.toCurrency(null, "EUR")        // null
+     * }</pre>
+     *
+     * @param s            the numeric string to format (may be {@code null})
+     * @param currencyCode the ISO 4217 currency code (e.g. "EUR", "USD")
+     * @return the formatted currency string, or {@code null} if s is null or unparseable
+     */
+    public static String toCurrency(String s, String currencyCode) {
+        if (s == null) {
+            return null;
+        }
+        try {
+            double amount = Double.parseDouble(s.trim());
+            Currency currency = Currency.getInstance(currencyCode);
+            NumberFormat format = NumberFormat.getCurrencyInstance(
+                    Locale.forLanguageTag(currencyToLocaleTag(currencyCode)));
+            format.setCurrency(currency);
+            return format.format(amount);
+        } catch (IllegalArgumentException e) {
+            return null;
+        }
+    }
+
+    private static String currencyToLocaleTag(String currencyCode) {
+        return switch (currencyCode.toUpperCase(Locale.ROOT)) {
+            case "EUR" -> "fr-FR";
+            case "USD" -> "en-US";
+            case "GBP" -> "en-GB";
+            case "JPY" -> "ja-JP";
+            case "CHF" -> "de-CH";
+            case "CAD" -> "en-CA";
+            case "AUD" -> "en-AU";
+            default -> "en-US";
+        };
     }
 }

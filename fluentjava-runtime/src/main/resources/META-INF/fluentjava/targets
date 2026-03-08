@@ -13,3 +13,5 @@ io.fluentjava.object.FluentObject
 io.fluentjava.map.FluentMap
 io.fluentjava.number.FluentNumber
 io.fluentjava.date.FluentDate
+io.fluentjava.optional.FluentOptional
+io.fluentjava.path.FluentPath

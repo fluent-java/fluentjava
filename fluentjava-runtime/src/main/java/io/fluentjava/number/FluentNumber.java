@@ -2,6 +2,9 @@ package io.fluentjava.number;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 
 public final class FluentNumber {
 
@@ -154,5 +157,158 @@ public final class FluentNumber {
             case 3 -> n + "rd";
             default -> n + "th";
         };
+    }
+
+    // ────────────────────────────────────────────────────────────────
+    // New methods
+    // ────────────────────────────────────────────────────────────────
+
+    /**
+     * Formats a number as a percentage string with the given decimal places.
+     *
+     * <h4>Examples:</h4>
+     * <pre>{@code
+     *   FluentNumber.toPercentString(0.75, 2)   // "75.00%"
+     *   FluentNumber.toPercentString(0.5, 0)    // "50%"
+     *   FluentNumber.toPercentString(null, 2)   // null
+     * }</pre>
+     *
+     * @param n        the number to format (may be {@code null})
+     * @param decimals the number of decimal places (>= 0)
+     * @return the formatted percentage string, or {@code null} if n is null
+     */
+    public static String toPercentString(Number n, int decimals) {
+        if (n == null) {
+            return null;
+        }
+        return String.format("%." + Math.max(0, decimals) + "f%%", n.doubleValue() * 100);
+    }
+
+    /**
+     * Clamps the value to the given range [min, max]. Alias of {@link #coerceIn}.
+     *
+     * @param n   the number to clamp (may be {@code null})
+     * @param min the minimum allowed value
+     * @param max the maximum allowed value
+     * @return clamped value, or 0 if n is null
+     */
+    public static double clamp(Number n, Number min, Number max) {
+        if (n == null) {
+            return 0d;
+        }
+        return coerceIn(n.doubleValue(), min.doubleValue(), max.doubleValue());
+    }
+
+    /**
+     * Checks if the number is a prime number.
+     *
+     * <h4>Examples:</h4>
+     * <pre>{@code
+     *   FluentNumber.isPrime(7)   // true
+     *   FluentNumber.isPrime(4)   // false
+     *   FluentNumber.isPrime(1)   // false
+     * }</pre>
+     *
+     * @param n the number to check
+     * @return {@code true} if n is prime
+     */
+    public static boolean isPrime(int n) {
+        if (n < 2) {
+            return false;
+        }
+        if (n < 4) {
+            return true;
+        }
+        if (n % 2 == 0 || n % 3 == 0) {
+            return false;
+        }
+        for (int i = 5; (long) i * i <= n; i += 6) {
+            if (n % i == 0 || n % (i + 2) == 0) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /**
+     * Computes the factorial of the given number.
+     * Returns -1 for negative numbers.
+     *
+     * <h4>Examples:</h4>
+     * <pre>{@code
+     *   FluentNumber.factorial(5)   // 120
+     *   FluentNumber.factorial(0)   // 1
+     *   FluentNumber.factorial(-1)  // -1
+     * }</pre>
+     *
+     * @param n the number (0! = 1)
+     * @return the factorial, or -1 if negative
+     */
+    public static long factorial(int n) {
+        if (n < 0) {
+            return -1L;
+        }
+        long result = 1L;
+        for (int i = 2; i <= n; i++) {
+            result *= i;
+        }
+        return result;
+    }
+
+    /**
+     * Returns the digits of the absolute value of the number as a list.
+     *
+     * <h4>Examples:</h4>
+     * <pre>{@code
+     *   FluentNumber.digits(123)  // [1, 2, 3]
+     *   FluentNumber.digits(0)    // [0]
+     *   FluentNumber.digits(-42)  // [4, 2]
+     * }</pre>
+     *
+     * @param n the number
+     * @return an unmodifiable list of digits
+     */
+    public static List<Integer> digits(int n) {
+        int abs = Math.abs(n);
+        if (abs == 0) {
+            return List.of(0);
+        }
+        List<Integer> out = new ArrayList<>();
+        while (abs > 0) {
+            out.add(abs % 10);
+            abs /= 10;
+        }
+        Collections.reverse(out);
+        return List.copyOf(out);
+    }
+
+    /**
+     * Returns the binary string representation of the number.
+     *
+     * @param n the number
+     * @return the binary string (e.g. "1010")
+     */
+    public static String toBinary(int n) {
+        return Integer.toBinaryString(n);
+    }
+
+    /**
+     * Returns the hexadecimal string representation of the number (lowercase).
+     *
+     * @param n the number
+     * @return the hex string (e.g. "ff")
+     */
+    public static String toHex(int n) {
+        return Integer.toHexString(n);
+    }
+
+    /**
+     * Returns the octal string representation of the number.
+     *
+     * @param n the number
+     * @return the octal string (e.g. "17")
+     */
+    public static String toOctal(int n) {
+        return Integer.toOctalString(n);
     }
 }

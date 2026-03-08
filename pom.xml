@@ -29,6 +29,7 @@
     <modules>
         <module>fluentjava-runtime</module>
         <module>fluentjava-plugin</module>
+        <module>fluentjava-maven-plugin</module>
     </modules>
 
     <properties>

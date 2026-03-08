@@ -7,7 +7,11 @@ import java.time.LocalDateTime;
 import java.time.Period;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 import java.time.temporal.ChronoUnit;
+import java.time.temporal.IsoFields;
+import java.time.temporal.TemporalAdjusters;
+import java.time.temporal.WeekFields;
 
 public final class FluentDate {
 
@@ -267,5 +271,198 @@ public final class FluentDate {
 
     private static boolean isBlank(String value) {
         return value == null || value.trim().isEmpty();
+    }
+
+    // ────────────────────────────────────────────────────────────────
+    // New methods
+    // ────────────────────────────────────────────────────────────────
+
+    /**
+     * Returns the Monday of the week containing the given date (ISO week).
+     *
+     * @param date the date (may be {@code null})
+     * @return the Monday of that week, or {@code null} if date is null
+     */
+    public static LocalDate startOfWeek(LocalDate date) {
+        if (date == null) {
+            return null;
+        }
+        return date.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
+    }
+
+    /**
+     * Returns the Sunday of the week containing the given date (ISO week).
+     *
+     * @param date the date (may be {@code null})
+     * @return the Sunday of that week, or {@code null} if date is null
+     */
+    public static LocalDate endOfWeek(LocalDate date) {
+        if (date == null) {
+            return null;
+        }
+        return date.with(TemporalAdjusters.nextOrSame(DayOfWeek.SUNDAY));
+    }
+
+    /**
+     * Returns the first day of the month for the given date.
+     *
+     * @param date the date (may be {@code null})
+     * @return the first day of the month, or {@code null} if date is null
+     */
+    public static LocalDate startOfMonth(LocalDate date) {
+        if (date == null) {
+            return null;
+        }
+        return date.with(TemporalAdjusters.firstDayOfMonth());
+    }
+
+    /**
+     * Returns the last day of the month for the given date.
+     *
+     * @param date the date (may be {@code null})
+     * @return the last day of the month, or {@code null} if date is null
+     */
+    public static LocalDate endOfMonth(LocalDate date) {
+        if (date == null) {
+            return null;
+        }
+        return date.with(TemporalAdjusters.lastDayOfMonth());
+    }
+
+    /**
+     * Returns January 1st of the year containing the given date.
+     *
+     * @param date the date (may be {@code null})
+     * @return the first day of the year, or {@code null} if date is null
+     */
+    public static LocalDate startOfYear(LocalDate date) {
+        if (date == null) {
+            return null;
+        }
+        return date.with(TemporalAdjusters.firstDayOfYear());
+    }
+
+    /**
+     * Returns December 31st of the year containing the given date.
+     *
+     * @param date the date (may be {@code null})
+     * @return the last day of the year, or {@code null} if date is null
+     */
+    public static LocalDate endOfYear(LocalDate date) {
+        if (date == null) {
+            return null;
+        }
+        return date.with(TemporalAdjusters.lastDayOfYear());
+    }
+
+    /**
+     * Returns the next weekday (Monday–Friday). If the date is already a
+     * weekday, returns the next one; if weekend, returns the following Monday.
+     *
+     * @param date the date (may be {@code null})
+     * @return the next weekday, or {@code null} if date is null
+     */
+    public static LocalDate nextWeekday(LocalDate date) {
+        if (date == null) {
+            return null;
+        }
+        LocalDate next = date.plusDays(1);
+        while (isWeekend(next)) {
+            next = next.plusDays(1);
+        }
+        return next;
+    }
+
+    /**
+     * Computes the age in whole years from the given birth date to today.
+     * More readable alias for {@link #yearsUntilNow}.
+     *
+     * @param birthDate the birth date (may be {@code null})
+     * @return the age in years, or 0 if null
+     */
+    public static int age(LocalDate birthDate) {
+        return yearsUntilNow(birthDate);
+    }
+
+    /**
+     * Checks whether the date is a business day (Monday–Friday).
+     * More readable alias for {@link #isWeekday}.
+     *
+     * @param date the date (may be {@code null})
+     * @return {@code true} if the date is a weekday
+     */
+    public static boolean isBusinessDay(LocalDate date) {
+        return isWeekday(date);
+    }
+
+    /**
+     * Parses a string into a {@link LocalDate} using the given pattern.
+     * Returns {@code null} if parsing fails or input is null.
+     *
+     * <h4>Examples:</h4>
+     * <pre>{@code
+     *   FluentDate.toLocalDate("25/12/2024", "dd/MM/yyyy")  // 2024-12-25
+     *   FluentDate.toLocalDate("invalid", "dd/MM/yyyy")      // null
+     *   FluentDate.toLocalDate(null, "dd/MM/yyyy")            // null
+     * }</pre>
+     *
+     * @param s       the string to parse (may be {@code null})
+     * @param pattern the date pattern (may be {@code null})
+     * @return the parsed {@link LocalDate}, or {@code null} on failure
+     */
+    public static LocalDate toLocalDate(String s, String pattern) {
+        if (isBlank(s) || isBlank(pattern)) {
+            return null;
+        }
+        try {
+            return LocalDate.parse(s.trim(), DateTimeFormatter.ofPattern(pattern));
+        } catch (DateTimeParseException e) {
+            return null;
+        }
+    }
+
+    /**
+     * Parses a string into a {@link LocalDateTime} using the given pattern.
+     * Returns {@code null} if parsing fails or input is null.
+     *
+     * @param s       the string to parse (may be {@code null})
+     * @param pattern the datetime pattern (may be {@code null})
+     * @return the parsed {@link LocalDateTime}, or {@code null} on failure
+     */
+    public static LocalDateTime toLocalDateTime(String s, String pattern) {
+        if (isBlank(s) || isBlank(pattern)) {
+            return null;
+        }
+        try {
+            return LocalDateTime.parse(s.trim(), DateTimeFormatter.ofPattern(pattern));
+        } catch (DateTimeParseException e) {
+            return null;
+        }
+    }
+
+    /**
+     * Returns the quarter (1–4) of the year for the given date.
+     *
+     * @param date the date (may be {@code null})
+     * @return the quarter number (1–4), or 0 if null
+     */
+    public static int quarterOf(LocalDate date) {
+        if (date == null) {
+            return 0;
+        }
+        return (date.getMonthValue() - 1) / 3 + 1;
+    }
+
+    /**
+     * Returns the ISO week-of-year number for the given date.
+     *
+     * @param date the date (may be {@code null})
+     * @return the ISO week number, or 0 if null
+     */
+    public static int weekOfYear(LocalDate date) {
+        if (date == null) {
+            return 0;
+        }
+        return date.get(IsoFields.WEEK_OF_WEEK_BASED_YEAR);
     }
 }
