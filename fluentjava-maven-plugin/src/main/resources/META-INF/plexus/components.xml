@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component-set>
+    <components>
+        <component>
+            <role>org.apache.maven.AbstractMavenLifecycleParticipant</role>
+            <role-hint>fluentjava</role-hint>
+            <implementation>io.fluentjava.maven.FluentJavaLifecycleParticipant</implementation>
+        </component>
+    </components>
+</component-set>

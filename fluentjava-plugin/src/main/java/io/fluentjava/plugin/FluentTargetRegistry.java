@@ -3,8 +3,14 @@ package io.fluentjava.plugin;
 import java.io.*;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
+import java.net.URL;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.*;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * Dynamic registry that discovers FluentJava target classes and their methods
@@ -31,6 +37,11 @@ import java.util.*;
 public final class FluentTargetRegistry {
 
     private static final String TARGETS_RESOURCE = "META-INF/fluentjava/targets";
+    private static final String EXTENSIONS_RESOURCE = "META-INF/fluentjava/extensions";
+    private static final Pattern PACKAGE_PATTERN = Pattern.compile("(?m)^\\s*package\\s+([\\w.]+)\\s*;");
+    private static final Pattern TYPE_PATTERN = Pattern.compile("(?m)^\\s*(?:public\\s+)?(?:final\\s+|abstract\\s+)?(?:class|record|interface|enum)\\s+([A-Za-z_][A-Za-z0-9_]*)\\b");
+    private static final Pattern EXTENSION_PATTERN = Pattern.compile("@(?:[\\w.]+\\.)?FluentExtension\\s*\\(\\s*target\\s*=\\s*([\\w.$]+)\\s*\\.class\\s*\\)");
+    private static final Pattern PUBLIC_STATIC_METHOD_PATTERN = Pattern.compile("(?m)^\\s*public\\s+static\\s+[\\w$<>\\[\\], ?]+\\s+([A-Za-z_][A-Za-z0-9_]*)\\s*\\(");
 
     /** All discovered fluent method names (union across all target classes). */
     private final Set<String> methodNames;
@@ -70,6 +81,10 @@ public final class FluentTargetRegistry {
                 // Class not on classpath — skip silently
             }
         }
+
+        // Also discover extension methods from current module sources so
+        // newly added project extensions are usable in the same compile.
+        discoverFromProjectSources(methods, imports, classNames);
 
         // Fallback: if nothing was discovered, use hardcoded defaults
         if (methods.isEmpty()) {
@@ -111,30 +126,91 @@ public final class FluentTargetRegistry {
     }
 
     /**
-     * Reads target class names from {@code META-INF/fluentjava/targets}.
+     * Reads target class names from both built-in and extension resources.
      */
     private static List<String> loadTargetClassNames() {
-        List<String> names = new ArrayList<>();
+        Set<String> names = new LinkedHashSet<>();
         ClassLoader cl = FluentTargetRegistry.class.getClassLoader();
         if (cl == null) cl = ClassLoader.getSystemClassLoader();
 
-        try (InputStream is = cl.getResourceAsStream(TARGETS_RESOURCE)) {
-            if (is == null) {
-                return names;
-            }
-            try (BufferedReader reader = new BufferedReader(
-                    new InputStreamReader(is, StandardCharsets.UTF_8))) {
-                String line;
-                while ((line = reader.readLine()) != null) {
-                    line = line.trim();
-                    if (!line.isEmpty() && !line.startsWith("#")) {
-                        names.add(line);
+        loadFromAllResources(cl, TARGETS_RESOURCE, names);
+        loadFromAllResources(cl, EXTENSIONS_RESOURCE, names);
+
+        return new ArrayList<>(names);
+    }
+
+    private static void loadFromAllResources(ClassLoader cl, String resourceName, Set<String> names) {
+        try {
+            Enumeration<URL> urls = cl.getResources(resourceName);
+            while (urls.hasMoreElements()) {
+                URL url = urls.nextElement();
+                try (InputStream is = url.openStream();
+                     BufferedReader reader = new BufferedReader(new InputStreamReader(is, StandardCharsets.UTF_8))) {
+                    String line;
+                    while ((line = reader.readLine()) != null) {
+                        line = line.trim();
+                        if (!line.isEmpty() && !line.startsWith("#")) {
+                            names.add(line);
+                        }
                     }
                 }
             }
         } catch (IOException e) {
             // Silently fall through — the fallback will kick in
         }
-        return names;
+    }
+
+    private static void discoverFromProjectSources(Set<String> methods,
+                                                   List<String> imports,
+                                                   Set<String> classNames) {
+        Path sourceRoot = Paths.get(System.getProperty("user.dir", "."), "src", "main", "java");
+        if (!Files.isDirectory(sourceRoot)) {
+            return;
+        }
+
+        try (var stream = Files.walk(sourceRoot)) {
+            stream.filter(path -> path.toString().endsWith(".java"))
+                    .forEach(path -> scanExtensionSource(path, methods, imports, classNames));
+        } catch (IOException ignored) {
+            // Keep best-effort behavior; runtime discovery and fallback still apply.
+        }
+    }
+
+    private static void scanExtensionSource(Path javaFile,
+                                            Set<String> methods,
+                                            List<String> imports,
+                                            Set<String> classNames) {
+        String source;
+        try {
+            source = Files.readString(javaFile, StandardCharsets.UTF_8);
+        } catch (IOException ignored) {
+            return;
+        }
+
+        Matcher extensionMatcher = EXTENSION_PATTERN.matcher(source);
+        if (!extensionMatcher.find()) {
+            return;
+        }
+
+        String pkg = "";
+        Matcher packageMatcher = PACKAGE_PATTERN.matcher(source);
+        if (packageMatcher.find()) {
+            pkg = packageMatcher.group(1);
+        }
+
+        Matcher typeMatcher = TYPE_PATTERN.matcher(source);
+        if (!typeMatcher.find()) {
+            return;
+        }
+
+        String simpleName = typeMatcher.group(1);
+        String fqn = pkg.isEmpty() ? simpleName : pkg + "." + simpleName;
+        imports.add(fqn);
+        classNames.add(simpleName);
+
+        Matcher methodMatcher = PUBLIC_STATIC_METHOD_PATTERN.matcher(source);
+        while (methodMatcher.find()) {
+            methods.add(methodMatcher.group(1));
+        }
     }
 }

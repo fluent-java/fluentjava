@@ -1,171 +1,120 @@
 package io.fluentjava.maven;
 
-import org.apache.maven.model.Plugin;
-import org.apache.maven.model.PluginExecution;
 import org.apache.maven.plugin.AbstractMojo;
 import org.apache.maven.plugin.MojoExecutionException;
 import org.apache.maven.plugins.annotations.LifecyclePhase;
 import org.apache.maven.plugins.annotations.Mojo;
 import org.apache.maven.plugins.annotations.Parameter;
 import org.apache.maven.project.MavenProject;
-import org.codehaus.plexus.util.xml.Xpp3Dom;
 
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.stream.Stream;
+import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
- * Maven Mojo that automatically configures the {@code maven-compiler-plugin}
- * for FluentJava. Injects the required compiler arguments, fork mode, and
- * annotation processor path so that users don't need to write boilerplate
- * configuration.
+ * Scans project sources for {@code @FluentExtension} annotated classes and
+ * generates the {@code META-INF/fluentjava/extensions} resource file that
+ * the javac plugin reads at compile time.
  *
- * <p>Usage in {@code pom.xml}:</p>
- * <pre>{@code
- * <plugin>
- *     <groupId>io.fluentjava</groupId>
- *     <artifactId>fluentjava-maven-plugin</artifactId>
- *     <version>1.0.0</version>
- *     <executions>
- *         <execution>
- *             <goals><goal>configure</goal></goals>
- *         </execution>
- *     </executions>
- * </plugin>
- * }</pre>
+ * <p>Compiler configuration (dependency, fork, --add-exports) is handled by
+ * {@link FluentJavaLifecycleParticipant} which runs before lifecycle
+ * computation when the plugin is declared with {@code <extensions>true</extensions>}.</p>
  *
  * @since 1.0.0
  */
 @Mojo(name = "configure", defaultPhase = LifecyclePhase.INITIALIZE)
 public class FluentJavaMojo extends AbstractMojo {
 
-    private static final String COMPILER_PLUGIN_GROUP = "org.apache.maven.plugins";
-    private static final String COMPILER_PLUGIN_ARTIFACT = "maven-compiler-plugin";
-    private static final String COMPILER_PLUGIN_VERSION = "3.12.1";
-
-    private static final List<String> REQUIRED_COMPILER_ARGS = List.of(
-            "-Xplugin:FluentJava",
-            "-J--add-exports=jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED",
-            "-J--add-exports=jdk.compiler/com.sun.tools.javac.tree=ALL-UNNAMED",
-            "-J--add-exports=jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED",
-            "-J--add-exports=jdk.compiler/com.sun.tools.javac.code=ALL-UNNAMED"
-    );
+    private static final Pattern PACKAGE_PATTERN = Pattern.compile("(?m)^\\s*package\\s+([\\w.]+)\\s*;");
+    private static final Pattern TYPE_PATTERN = Pattern.compile("(?m)^\\s*(?:public\\s+)?(?:final\\s+|abstract\\s+)?(?:class|record|interface|enum)\\s+([A-Za-z_][A-Za-z0-9_]*)\\b");
+    private static final Pattern EXTENSION_PATTERN = Pattern.compile("@(?:[\\w.]+\\.)?FluentExtension\\s*\\(\\s*target\\s*=\\s*([\\w.$]+)\\s*\\.class\\s*\\)");
 
     @Parameter(defaultValue = "${project}", readonly = true, required = true)
     private MavenProject project;
 
     @Override
     public void execute() throws MojoExecutionException {
-        getLog().info("FluentJava: configuring maven-compiler-plugin...");
-
-        Plugin compiler = findOrCreateCompilerPlugin();
-        Xpp3Dom config = getOrCreateConfiguration(compiler);
-
-        configureFork(config);
-        configureCompilerArgs(config);
-        configureAnnotationProcessorPaths(config);
-
-        getLog().info("FluentJava configured successfully.");
+        generateExtensionsResource();
+        getLog().info("[FluentJava] Done \u2014 FluentJava is ready.");
     }
 
-    private Plugin findOrCreateCompilerPlugin() {
-        for (Plugin plugin : project.getBuild().getPlugins()) {
-            if (COMPILER_PLUGIN_GROUP.equals(plugin.getGroupId())
-                    && COMPILER_PLUGIN_ARTIFACT.equals(plugin.getArtifactId())) {
-                getLog().debug("FluentJava: found existing maven-compiler-plugin");
-                return plugin;
+    // ── Extensions resource generation ────────────────────────────────
+
+    private void generateExtensionsResource() throws MojoExecutionException {
+        Set<String> extensionClasses = new LinkedHashSet<>();
+
+        for (String sourceRoot : project.getCompileSourceRoots()) {
+            Path root = Paths.get(sourceRoot);
+            if (!Files.isDirectory(root)) {
+                continue;
             }
+            scanSourceRootForExtensions(root, extensionClasses);
         }
 
-        getLog().debug("FluentJava: creating maven-compiler-plugin declaration");
-        Plugin compiler = new Plugin();
-        compiler.setGroupId(COMPILER_PLUGIN_GROUP);
-        compiler.setArtifactId(COMPILER_PLUGIN_ARTIFACT);
-        compiler.setVersion(COMPILER_PLUGIN_VERSION);
-        project.getBuild().addPlugin(compiler);
-        return compiler;
-    }
-
-    private Xpp3Dom getOrCreateConfiguration(Plugin plugin) {
-        Xpp3Dom config = (Xpp3Dom) plugin.getConfiguration();
-        if (config == null) {
-            config = new Xpp3Dom("configuration");
-            plugin.setConfiguration(config);
-        }
-        return config;
-    }
-
-    private void configureFork(Xpp3Dom config) {
-        Xpp3Dom fork = config.getChild("fork");
-        if (fork == null) {
-            fork = new Xpp3Dom("fork");
-            fork.setValue("true");
-            config.addChild(fork);
-            getLog().debug("FluentJava: set fork=true");
-        } else if (!"true".equals(fork.getValue())) {
-            fork.setValue("true");
-            getLog().debug("FluentJava: overrode fork to true (required for --add-exports)");
+        Path output = Paths.get(project.getBuild().getOutputDirectory())
+                .resolve("META-INF")
+                .resolve("fluentjava")
+                .resolve("extensions");
+        try {
+            Files.createDirectories(output.getParent());
+            List<String> lines = new ArrayList<>();
+            lines.add("# Auto-generated by fluentjava-maven-plugin");
+            lines.add("# Classes annotated with @FluentExtension");
+            lines.addAll(extensionClasses);
+            Files.write(output, lines, StandardCharsets.UTF_8);
+            getLog().info("FluentJava: generated " + output + " with " + extensionClasses.size() + " extension class(es)");
+        } catch (IOException e) {
+            throw new MojoExecutionException("Failed to generate META-INF/fluentjava/extensions", e);
         }
     }
 
-    private void configureCompilerArgs(Xpp3Dom config) {
-        Xpp3Dom compilerArgs = config.getChild("compilerArgs");
-        if (compilerArgs == null) {
-            compilerArgs = new Xpp3Dom("compilerArgs");
-            config.addChild(compilerArgs);
-        }
-
-        for (String requiredArg : REQUIRED_COMPILER_ARGS) {
-            if (!containsArg(compilerArgs, requiredArg)) {
-                Xpp3Dom arg = new Xpp3Dom("arg");
-                arg.setValue(requiredArg);
-                compilerArgs.addChild(arg);
-                getLog().debug("FluentJava: added compilerArg: " + requiredArg);
-            }
+    private void scanSourceRootForExtensions(Path root, Set<String> extensionClasses) throws MojoExecutionException {
+        try (Stream<Path> stream = Files.walk(root)) {
+            stream
+                    .filter(p -> p.toString().endsWith(".java"))
+                    .forEach(javaFile -> scanJavaFile(javaFile, extensionClasses));
+        } catch (IOException e) {
+            throw new MojoExecutionException("Failed to scan sources for @FluentExtension in " + root, e);
         }
     }
 
-    private void configureAnnotationProcessorPaths(Xpp3Dom config) {
-        Xpp3Dom paths = config.getChild("annotationProcessorPaths");
-        if (paths == null) {
-            paths = new Xpp3Dom("annotationProcessorPaths");
-            config.addChild(paths);
+    private void scanJavaFile(Path javaFile, Set<String> extensionClasses) {
+        String source;
+        try {
+            source = Files.readString(javaFile, StandardCharsets.UTF_8);
+        } catch (IOException e) {
+            getLog().warn("FluentJava: unable to read " + javaFile + " (" + e.getMessage() + ")");
+            return;
         }
 
-        if (!containsProcessorPath(paths, "fluentjava-plugin")) {
-            Xpp3Dom path = new Xpp3Dom("path");
-
-            Xpp3Dom groupId = new Xpp3Dom("groupId");
-            groupId.setValue("io.fluentjava");
-            path.addChild(groupId);
-
-            Xpp3Dom artifactId = new Xpp3Dom("artifactId");
-            artifactId.setValue("fluentjava-plugin");
-            path.addChild(artifactId);
-
-            Xpp3Dom version = new Xpp3Dom("version");
-            version.setValue(project.getVersion());
-            path.addChild(version);
-
-            paths.addChild(path);
-            getLog().debug("FluentJava: added fluentjava-plugin to annotationProcessorPaths");
+        Matcher extMatcher = EXTENSION_PATTERN.matcher(source);
+        if (!extMatcher.find()) {
+            return;
         }
-    }
 
-    private boolean containsArg(Xpp3Dom compilerArgs, String value) {
-        for (Xpp3Dom child : compilerArgs.getChildren()) {
-            if (value.equals(child.getValue())) {
-                return true;
-            }
+        String pkg = "";
+        Matcher packageMatcher = PACKAGE_PATTERN.matcher(source);
+        if (packageMatcher.find()) {
+            pkg = packageMatcher.group(1);
         }
-        return false;
-    }
 
-    private boolean containsProcessorPath(Xpp3Dom paths, String artifactId) {
-        for (Xpp3Dom child : paths.getChildren()) {
-            Xpp3Dom aid = child.getChild("artifactId");
-            if (aid != null && artifactId.equals(aid.getValue())) {
-                return true;
-            }
+        Matcher typeMatcher = TYPE_PATTERN.matcher(source);
+        if (!typeMatcher.find()) {
+            getLog().warn("FluentJava: @FluentExtension found but no top-level type in " + javaFile);
+            return;
         }
-        return false;
+
+        String simpleName = typeMatcher.group(1);
+        String fqn = pkg.isEmpty() ? simpleName : pkg + "." + simpleName;
+        extensionClasses.add(fqn);
     }
 }
