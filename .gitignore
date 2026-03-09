@@ -48,3 +48,12 @@ desktop.ini
 # Generated sources
 generated-sources/
 generated-test-sources/
+
+# Gradle (for subprojects like fluentjava-gradle-plugin)
+.gradle/
+build/
+
+# Nested Gradle plugin project artifacts
+fluentjava-gradle-plugin/.gradle/
+fluentjava-gradle-plugin/build/
+
