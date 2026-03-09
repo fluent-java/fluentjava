@@ -121,19 +121,39 @@ String out = "FluentJava".bracketize("[", "]");
 - `fluentjava-maven-plugin` scans sources and generates `target/classes/META-INF/fluentjava/extensions`.
 - The javac plugin rewrites `"x".bracketize("[", "]")` → `StringExtensions.bracketize("x", "[", "]")`.
 
-## Built-in Types
+## Built-in Methods
 
-| Type | Fluent Class | Examples |
-|------|-------------|----------|
-| `Object` | `FluentObject` | `also`, `let`, `takeIf`, `isNull`, `orElse` |
-| `String` | `FluentString` | `isBlankSafe`, `trimToNull`, `toSlug`, `mask`, `toIntOrNull` |
-| `List` | `FluentList` | `firstOrNull`, `filterBy`, `mapTo`, `groupBy`, `paginate` |
-| `Map` | `FluentMap` | `filterKeys`, `mapValues`, `merge`, `invertMap` |
-| `Number` | `FluentNumber` | `coerceIn`, `isBetween`, `roundTo`, `isPrime` |
-| `LocalDate` | `FluentDate` | `isWeekend`, `daysUntil`, `format`, `age` |
-| `LocalDateTime` | `FluentDate` | `format`, `toEpochMillis`, `isBetween` |
-| `Optional` | `FluentOptional` | `orNull`, `mapTo`, `filterBy` |
-| `Path` | `FluentPath` | `readText`, `writeText`, `exists`, `extension` |
+### Object (`FluentObject`)
+
+`also`, `let`, `takeIf`, `takeUnless`, `isNull`, `isNotNull`, `orElse`, `orElseGet`, `requireNotNull`, `requireThat`
+
+### String (`FluentString`)
+
+`isBlankSafe`, `isNullOrBlank`, `isNullOrEmpty`, `orEmpty`, `orDefault`, `trimToNull`, `toIntOrNull`, `toLongOrNull`, `toDoubleOrNull`, `toBooleanOrNull`, `toBigDecimalOrNull`, `take`, `takeLast`, `drop`, `dropLast`, `padStart`, `padEnd`, `reversed`, `capitalized`, `decapitalized`, `truncate`, `removePrefix`, `removeSuffix`, `wrap`, `unwrap`, `repeat`, `containsIgnoreCase`, `startsWithIgnoreCase`, `endsWithIgnoreCase`, `countOccurrences`, `isNumeric`, `isAlpha`, `isAlphanumeric`, `isEmail`, `toSlug`, `mask`, `toCamelCase`, `toSnakeCase`, `left`, `right`, `center`, `normalizeWhitespace`, `stripAccents`, `ifBlank`, `ifEmpty`, `splitToList`, `lines`, `toBase64`, `fromBase64`, `ellipsize`, `toPascalCase`, `toKebabCase`, `matchesPattern`, `digest`, `toInitials`, `countWords`, `isUrl`, `isIPv4`, `redact`, `toCurrency`
+
+### List (`FluentList`)
+
+`isNullOrEmpty`, `orEmpty`, `firstOrNull`, `firstOrNull(predicate)`, `lastOrNull`, `lastOrNull(predicate)`, `getOrNull`, `getOrDefault`, `filterBy`, `mapTo`, `flatMap`, `mapNotNull`, `filterNotNull`, `distinctBy`, `sortedBy`, `sortedByDescending`, `groupBy`, `associateBy`, `partition`, `chunked`, `sumOf`, `maxByOrNull`, `minByOrNull`, `averageOf`, `countBy`, `none`, `any`, `all`, `takeWhile`, `dropWhile`, `paginate`, `zip`, `intersect`, `subtract`, `union`, `second`, `third`, `toSet`, `associate`, `indexOfFirst`, `indexOfLast`, `flatten`, `randomOrNull`, `forEachIndexed`, `toCsv`, `frequencies`, `shuffled`, `sample`, `windowed`, `sumOfInt`, `sumOfLong`
+
+### Map (`FluentMap`)
+
+`isNullOrEmpty`, `orEmpty`, `getOrEmpty`, `getOrNull`, `filterKeys`, `filterValues`, `mapValues`, `mapKeys`, `any`, `all`, `none`, `count`, `toList`, `merge`, `invertMap`, `getOrPut`, `forEach`, `toSortedMap`, `containsAllKeys`, `flatMapValues`, `entries`, `filterByValue`
+
+### Number (`FluentNumber`)
+
+`coerceIn`, `coerceAtLeast`, `coerceAtMost`, `isBetween`, `isPositive`, `isNegative`, `isZero`, `roundTo`, `percentOf`, `isEven`, `isOdd`, `toOrdinal`, `toPercentString`, `clamp`, `isPrime`, `factorial`, `digits`, `toBinary`, `toHex`, `toOctal`
+
+### Date (`FluentDate`)
+
+`isWeekend`, `isWeekday`, `isToday`, `isPast`, `isFuture`, `isLeapYear`, `daysUntil`, `monthsUntil`, `yearsUntilNow`, `format`, `atStartOfDay`, `atEndOfDay`, `toEpochMillis`, `fromEpochMillis`, `isBefore`, `isAfter`, `isBetween`, `startOfWeek`, `endOfWeek`, `startOfMonth`, `endOfMonth`, `startOfYear`, `endOfYear`, `nextWeekday`, `age`, `isBusinessDay`, `toLocalDate`, `toLocalDateTime`, `quarterOf`, `weekOfYear`
+
+### Optional (`FluentOptional`)
+
+`toOptional`, `orNull`, `orEmpty`, `ifPresent`, `mapTo`, `filterBy`, `isPresent`, `isEmpty`, `orElseThrow`
+
+### Path (`FluentPath`)
+
+`readText`, `writeText`, `readLines`, `exists`, `extension`, `nameWithoutExtension`, `fileName`, `copyTo`, `moveTo`, `deleteIfExists`, `sizeInBytes`, `isDirectory`, `listFiles`, `createDirectories`
 
 ## Demo
 
