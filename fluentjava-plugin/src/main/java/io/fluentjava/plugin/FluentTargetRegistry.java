@@ -43,24 +43,26 @@ public final class FluentTargetRegistry {
     private static final Pattern EXTENSION_PATTERN = Pattern.compile("@(?:[\\w.]+\\.)?FluentExtension\\s*\\(\\s*target\\s*=\\s*([\\w.$]+)\\s*\\.class\\s*\\)");
     private static final Pattern PUBLIC_STATIC_METHOD_PATTERN = Pattern.compile("(?m)^\\s*public\\s+static\\s+[\\w$<>\\[\\], ?]+\\s+([A-Za-z_][A-Za-z0-9_]*)\\s*\\(");
 
-    /** All discovered fluent method names (union across all target classes). */
-    private final Set<String> methodNames;
-
-    /** Fully qualified class names to import (e.g., "io.fluentjava.string.FluentString"). */
-    private final List<String> importTargets;
-
-    /** Simple class names of FluentXxx classes (for skipping already-static calls). */
-    private final Set<String> fluentClassSimpleNames;
+    /**
+     * Internal mutable collections — updated during classpath discovery,
+     * source scanning, AND AST-based discovery (two-phase compile).
+     *
+     * <p>{@link FluentMethodRewriter} and {@link FluentImportInjector} store
+     * unmodifiable <em>views</em> (via {@link Collections#unmodifiableSet} etc.)
+     * that read through to these backing collections. Any additions made by
+     * {@link #addMethodName}, {@link #addImportTarget}, or
+     * {@link #addFluentClassName} are therefore immediately visible to the
+     * rewriter/injector without re-creating them.</p>
+     */
+    private final Set<String> methodNames = new LinkedHashSet<>();
+    private final List<String> importTargets = new ArrayList<>();
+    private final Set<String> fluentClassSimpleNames = new LinkedHashSet<>();
 
     /**
      * Creates a new registry by discovering target classes from the classpath.
      * Falls back to hardcoded defaults if discovery fails.
      */
     public FluentTargetRegistry() {
-        Set<String> methods = new LinkedHashSet<>();
-        List<String> imports = new ArrayList<>();
-        Set<String> classNames = new LinkedHashSet<>();
-
         List<String> targetClassNames = loadTargetClassNames();
 
         for (String className : targetClassNames) {
@@ -68,13 +70,13 @@ public final class FluentTargetRegistry {
                 Class<?> clazz = Class.forName(className, false,
                         FluentTargetRegistry.class.getClassLoader());
 
-                imports.add(className);
-                classNames.add(clazz.getSimpleName());
+                importTargets.add(className);
+                fluentClassSimpleNames.add(clazz.getSimpleName());
 
                 for (Method m : clazz.getDeclaredMethods()) {
                     if (Modifier.isPublic(m.getModifiers())
                             && Modifier.isStatic(m.getModifiers())) {
-                        methods.add(m.getName());
+                        methodNames.add(m.getName());
                     }
                 }
             } catch (ClassNotFoundException e) {
@@ -84,45 +86,65 @@ public final class FluentTargetRegistry {
 
         // Also discover extension methods from current module sources so
         // newly added project extensions are usable in the same compile.
-        discoverFromProjectSources(methods, imports, classNames);
+        discoverFromProjectSources(methodNames, importTargets, fluentClassSimpleNames);
 
         // Fallback: if nothing was discovered, use hardcoded defaults
-        if (methods.isEmpty()) {
-            methods.addAll(Set.of(
+        if (methodNames.isEmpty()) {
+            methodNames.addAll(Set.of(
                     "isBlankSafe", "trimToNull", "toIntOrNull", "mask",
                     "firstOrNull", "lastOrNull", "filterBy", "mapTo"
             ));
-            imports.addAll(List.of(
+            importTargets.addAll(List.of(
                     "io.fluentjava.string.FluentString",
                     "io.fluentjava.list.FluentList"
             ));
-            classNames.addAll(Set.of("FluentString", "FluentList"));
+            fluentClassSimpleNames.addAll(Set.of("FluentString", "FluentList"));
         }
-
-        this.methodNames = Collections.unmodifiableSet(methods);
-        this.importTargets = Collections.unmodifiableList(imports);
-        this.fluentClassSimpleNames = Collections.unmodifiableSet(classNames);
     }
+
+    // ── Dynamic registration (called from FluentTaskListener AST scan) ──
+
+    /** Registers a method name discovered from a parsed @FluentExtension AST. */
+    public void addMethodName(String name) {
+        methodNames.add(name);
+    }
+
+    /** Registers an import target (extension class FQN) for static import injection. */
+    public void addImportTarget(String fqn) {
+        if (!importTargets.contains(fqn)) {
+            importTargets.add(fqn);
+        }
+    }
+
+    /** Registers a simple class name for already-static-call detection. */
+    public void addFluentClassName(String simpleName) {
+        fluentClassSimpleNames.add(simpleName);
+    }
+
+    // ── Getters (return live unmodifiable views) ──────────────────────
 
     /**
      * Returns all discovered fluent method names.
+     * The returned view reflects additions made after construction.
      */
     public Set<String> getMethodNames() {
-        return methodNames;
+        return Collections.unmodifiableSet(methodNames);
     }
 
     /**
-     * Returns FQNs of all FluentXxx classes (for import injection).
+     * Returns FQNs of all FluentXxx/extension classes (for import injection).
+     * The returned view reflects additions made after construction.
      */
     public List<String> getImportTargets() {
-        return importTargets;
+        return Collections.unmodifiableList(importTargets);
     }
 
     /**
-     * Returns simple class names of FluentXxx classes (for skip detection).
+     * Returns simple class names (for skip detection).
+     * The returned view reflects additions made after construction.
      */
     public Set<String> getFluentClassSimpleNames() {
-        return fluentClassSimpleNames;
+        return Collections.unmodifiableSet(fluentClassSimpleNames);
     }
 
     /**
@@ -163,16 +185,46 @@ public final class FluentTargetRegistry {
     private static void discoverFromProjectSources(Set<String> methods,
                                                    List<String> imports,
                                                    Set<String> classNames) {
-        Path sourceRoot = Paths.get(System.getProperty("user.dir", "."), "src", "main", "java");
-        if (!Files.isDirectory(sourceRoot)) {
-            return;
+        Path root = Paths.get(System.getProperty("user.dir", "."));
+
+        // Collect all candidate source roots (handles multi-module layouts)
+        List<Path> candidateRoots = new ArrayList<>();
+
+        // 1. Standard Maven/Gradle: user.dir/src/main/java
+        Path directSrc = root.resolve("src").resolve("main").resolve("java");
+        if (Files.isDirectory(directSrc)) {
+            candidateRoots.add(directSrc);
         }
 
-        try (var stream = Files.walk(sourceRoot)) {
-            stream.filter(path -> path.toString().endsWith(".java"))
-                    .forEach(path -> scanExtensionSource(path, methods, imports, classNames));
-        } catch (IOException ignored) {
-            // Keep best-effort behavior; runtime discovery and fallback still apply.
+        // 2. Multi-module children: user.dir/*/src/main/java
+        try (var children = Files.list(root)) {
+            children.filter(Files::isDirectory)
+                    .map(dir -> dir.resolve("src").resolve("main").resolve("java"))
+                    .filter(Files::isDirectory)
+                    .forEach(candidateRoots::add);
+        } catch (IOException ignored) {}
+
+        // 3. Parent module (if CWD is a sub-module): ../src/main/java, ../*/src/main/java
+        Path parent = root.getParent();
+        if (parent != null) {
+            Path parentSrc = parent.resolve("src").resolve("main").resolve("java");
+            if (Files.isDirectory(parentSrc)) {
+                candidateRoots.add(parentSrc);
+            }
+            try (var siblings = Files.list(parent)) {
+                siblings.filter(Files::isDirectory)
+                        .filter(dir -> !dir.equals(root))
+                        .map(dir -> dir.resolve("src").resolve("main").resolve("java"))
+                        .filter(Files::isDirectory)
+                        .forEach(candidateRoots::add);
+            } catch (IOException ignored) {}
+        }
+
+        for (Path sourceRoot : candidateRoots) {
+            try (var stream = Files.walk(sourceRoot)) {
+                stream.filter(path -> path.toString().endsWith(".java"))
+                        .forEach(path -> scanExtensionSource(path, methods, imports, classNames));
+            } catch (IOException ignored) {}
         }
     }
 

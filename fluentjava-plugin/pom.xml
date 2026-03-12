@@ -62,8 +62,6 @@
                         <arg>jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED</arg>
                         <arg>--add-exports</arg>
                         <arg>jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED</arg>
-                        <arg>--add-exports</arg>
-                        <arg>jdk.compiler/com.sun.tools.javac.code=ALL-UNNAMED</arg>
                     </compilerArgs>
                     <fork>true</fork>
                 </configuration>

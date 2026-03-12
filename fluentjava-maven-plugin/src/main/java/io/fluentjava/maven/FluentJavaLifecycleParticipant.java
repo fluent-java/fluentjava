@@ -38,8 +38,7 @@ public class FluentJavaLifecycleParticipant extends AbstractMavenLifecyclePartic
     private static final List<String> ADD_EXPORTS = List.of(
             "-J--add-exports=jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED",
             "-J--add-exports=jdk.compiler/com.sun.tools.javac.tree=ALL-UNNAMED",
-            "-J--add-exports=jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED",
-            "-J--add-exports=jdk.compiler/com.sun.tools.javac.code=ALL-UNNAMED"
+            "-J--add-exports=jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED"
     );
 
     @Override
