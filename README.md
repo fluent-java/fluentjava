@@ -1,59 +1,100 @@
-# FluentJava
+<div align="center">
 
-FluentJava apporte a Java une experience d'appel fluide, lisible et expressive, tout en gardant un resultat de compilation simple: des appels statiques Java classiques.
+# ⚡ FluentJava
 
-L'idee est directe: ecrire du code qui se lit comme une API native, sans sacrifier la clarte, la performance ou la simplicite de production.
+**Extension methods for Java — at compile time.**
+
+*Write Java. Read Kotlin.*
+
+[![Java 17+](https://img.shields.io/badge/Java-17%2B-blue?logo=openjdk&logoColor=white)](https://openjdk.org/)
+[![License](https://img.shields.io/badge/License-Apache%202.0-green.svg)](LICENSE)
+[![Maven Central](https://img.shields.io/badge/Maven%20Central-1.0.0-orange?logo=apache-maven)](https://central.sonatype.com/)
+[![Zero Runtime Overhead](https://img.shields.io/badge/Runtime%20Overhead-Zero-brightgreen)](#how-it-works)
+
+[📖 Documentation](https://fluent-java.github.io/fluent-java-doc/fluentjava-doc.html) · [🔌 IntelliJ Plugin](../fluentjava-intellij-plugin/)
+
+</div>
+
+---
+
+FluentJava brings **extension methods** to Java. Call intuitive, chainable methods directly on `String`, `List`, `Map`, `Optional`, `Path`, `LocalDate`, numbers, and any object — without inheritance, wrappers, or runtime tricks.
 
 ```java
+// ❌ Before — verbose, null-unsafe, scattered helpers
+String slug = null;
+if (title != null) {
+    String trimmed = title.trim();
+    if (!trimmed.isEmpty()) {
+        slug = trimmed.toLowerCase()
+                .replaceAll("[^a-z0-9]+", "-")
+                .replaceAll("^-+|-+$", "");
+    }
+}
+
+// ✅ After — one line, null-safe, reads like natural language
 String slug = title.trimToNull().toSlug();
 ```
 
-Le code compile ensuite vers des appels statiques ordinaires du runtime FluentJava. En production, il n'y a ni agent, ni reflection, ni magie runtime a maintenir.
+At compile time, the FluentJava javac plugin rewrites fluent calls into plain static method invocations. **In production, there is no agent, no reflection, no runtime dependency beyond a lightweight utility JAR.** Same approach as [Lombok](https://projectlombok.org/) and [Error Prone](https://errorprone.info/) — a battle-tested compiler plugin technique.
 
-## Pourquoi FluentJava
+> 📖 **Full documentation:** [fluent-java.github.io/fluent-java-doc](https://fluent-java.github.io/fluent-java-doc/fluentjava-doc.html)
 
-- Rend le code metier plus lisible et plus compact.
-- Evite une accumulation de helpers statiques disperses dans le projet.
-- Centralise des operations utiles sur `String`, `List`, `Map`, `Optional`, `Path`, `LocalDate`, nombres et objets.
-- Permet d'ajouter vos propres methodes fluides sur n'importe quelle classe grace a `@FluentExtension`.
-- Reste compatible avec un usage classique en methodes statiques si vous ne voulez pas activer le plugin de compilation.
+---
 
-## Modules
+## Why FluentJava?
 
-- `fluentjava-runtime`: le runtime public, avec les classes utilitaires statiques et l'annotation `@FluentExtension`.
-- `fluentjava-plugin`: le plugin `javac` qui transforme les appels fluides a la compilation.
-- `fluentjava-maven-plugin`: la facon recommandee d'activer FluentJava avec Maven.
-- `fluentjava-gradle-plugin`: le plugin Gradle pour activer FluentJava dans un build Gradle.
+| | Feature | Description |
+|---|---------|-------------|
+| 🧹 | **Readable code** | Replace verbose utility calls with expressive, chainable syntax that reads like natural language |
+| 🔒 | **Null-safe by design** | Every method handles `null` gracefully — no more `NullPointerException` surprises |
+| ⚡ | **Zero runtime overhead** | Compile-time AST rewrite → plain `invokestatic` calls. No reflection, no proxy, no agent |
+| 🧩 | **250+ built-in methods** | Covers String (60), List (51), Map (22), Number (20), Date (34), Optional (9), Path (14), Object (10) |
+| 🔧 | **Extensible via `@FluentExtension`** | Add your own fluent methods on **any** class — including JDK and third-party types |
+| 🖥️ | **Full IntelliJ support** | Autocompletion, zero red squiggles, Ctrl+B navigation, Ctrl+Q documentation |
+| 📦 | **Drop-in Maven & Gradle** | One dependency + one plugin. Works with existing projects instantly |
+| 🔄 | **Works without plugin too** | The runtime doubles as a standalone static utility library |
 
-## 10 exemples pertinents
+### How does it compare?
 
-### 1. Nettoyer un titre et produire un slug
+| Concern | Apache Commons / Guava | Kotlin stdlib | **FluentJava** |
+|---------|----------------------|---------------|----------------|
+| Syntax | `StringUtils.trimToNull(s)` | `s.trimToNull()` | `s.trimToNull()` |
+| Null safety | Manual checks everywhere | Built-in (`?.`) | Built-in (every method) |
+| Extensibility | Write more utility classes | Extension functions | `@FluentExtension` |
+| Runtime cost | Library on classpath | Kotlin runtime (~1.5 MB) | Static calls only |
+| Language | Java | Kotlin | **Java** |
 
-Avant, en Java pur:
+---
 
+## 20 Before & After Examples
+
+### String Operations
+
+#### 1. Clean and slugify a title
+
+❌ **Before** — Java:
 ```java
 String slug = null;
 if (title != null) {
     String trimmed = title.trim();
     if (!trimmed.isEmpty()) {
-        slug = trimmed
-                .toLowerCase()
+        slug = trimmed.toLowerCase()
                 .replaceAll("[^a-z0-9]+", "-")
                 .replaceAll("^-+|-+$", "");
     }
 }
 ```
 
-Apres, avec FluentJava:
-
+✅ **After** — FluentJava:
 ```java
 String slug = title.trimToNull().toSlug();
 ```
 
-### 2. Parser un entier sans try/catch dans le code metier
+---
 
-Avant, en Java pur:
+#### 2. Parse an integer safely
 
+❌ **Before:**
 ```java
 Integer quantity = null;
 if (rawQuantity != null) {
@@ -61,69 +102,114 @@ if (rawQuantity != null) {
     if (!trimmed.isEmpty()) {
         try {
             quantity = Integer.valueOf(trimmed);
-        } catch (NumberFormatException ignored) {
-        }
+        } catch (NumberFormatException ignored) {}
     }
 }
 ```
 
-Apres, avec FluentJava:
-
+✅ **After:**
 ```java
 Integer quantity = rawQuantity.toIntOrNull();
 ```
 
-### 3. Masquer une information sensible
+---
 
-Avant, en Java pur:
+#### 3. Mask sensitive data
 
+❌ **Before:**
 ```java
-String maskedCard;
+String masked;
 if (cardNumber == null || cardNumber.length() <= 4) {
-    maskedCard = cardNumber;
+    masked = cardNumber;
 } else {
     int hidden = cardNumber.length() - 4;
-    maskedCard = "*".repeat(hidden) + cardNumber.substring(hidden);
+    masked = "*".repeat(hidden) + cardNumber.substring(hidden);
 }
 ```
 
-Apres, avec FluentJava:
-
+✅ **After:**
 ```java
-String maskedCard = cardNumber.mask(4);
+String masked = cardNumber.mask(4);
+// "4532015112830366" → "************0366"
 ```
 
-### 4. Normaliser une phrase puis extraire des initiales
+---
 
-Avant, en Java pur:
+#### 4. Normalize whitespace and extract initials
 
+❌ **Before:**
 ```java
 String initials = "";
 if (fullName != null) {
     String normalized = fullName.trim().replaceAll("\\s+", " ");
     if (!normalized.isEmpty()) {
-        String[] parts = normalized.split(" ");
-        StringBuilder builder = new StringBuilder();
-        for (String part : parts) {
-            if (!part.isEmpty()) {
-                builder.append(Character.toUpperCase(part.charAt(0)));
-            }
+        StringBuilder sb = new StringBuilder();
+        for (String part : normalized.split(" ")) {
+            if (!part.isEmpty()) sb.append(Character.toUpperCase(part.charAt(0)));
         }
-        initials = builder.toString();
+        initials = sb.toString();
     }
 }
 ```
 
-Apres, avec FluentJava:
-
+✅ **After:**
 ```java
 String initials = fullName.normalizeWhitespace().toInitials();
+// "  Jean   Pierre  Dupont  " → "JPD"
 ```
 
-### 5. Filtrer, transformer et dedupliquer une liste
+---
 
-Avant, en Java pur:
+#### 5. Validate an email format
 
+❌ **Before:**
+```java
+boolean valid = false;
+if (email != null) {
+    valid = email.matches("^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$");
+}
+```
+
+✅ **After:**
+```java
+boolean valid = email.isEmail();
+```
+
+---
+
+#### 6. Convert between case formats
+
+❌ **Before:**
+```java
+// camelCase to snake_case — fragile regex
+String snake = input.replaceAll("([a-z])([A-Z])", "$1_$2").toLowerCase();
+
+// snake_case to camelCase — manual loop
+String[] parts = input.split("_");
+StringBuilder camel = new StringBuilder(parts[0].toLowerCase());
+for (int i = 1; i < parts.length; i++) {
+    if (!parts[i].isEmpty()) {
+        camel.append(Character.toUpperCase(parts[i].charAt(0)))
+             .append(parts[i].substring(1).toLowerCase());
+    }
+}
+```
+
+✅ **After:**
+```java
+String snake  = input.toSnakeCase();    // "myFieldName" → "my_field_name"
+String camel  = input.toCamelCase();    // "my_field_name" → "myFieldName"
+String kebab  = input.toKebabCase();    // "myFieldName" → "my-field-name"
+String pascal = input.toPascalCase();   // "my_field_name" → "MyFieldName"
+```
+
+---
+
+### List Operations
+
+#### 7. Filter, transform, and deduplicate
+
+❌ **Before:**
 ```java
 List<String> emails = new ArrayList<>();
 Set<String> seen = new LinkedHashSet<>();
@@ -137,134 +223,287 @@ for (User user : users) {
 }
 ```
 
-Apres, avec FluentJava:
-
+✅ **After:**
 ```java
 List<String> emails = users
-        .filterBy(User::isActive)
-        .mapTo(User::getEmail)
-    .mapNotNull(email -> email.trimToNull())
-        .mapTo(String::toLowerCase)
-        .distinctBy(email -> email);
+    .filterBy(User::isActive)
+    .mapTo(User::getEmail)
+    .mapNotNull(e -> e.trimToNull())
+    .mapTo(String::toLowerCase)
+    .distinctBy(e -> e);
 ```
 
-### 6. Regrouper une liste par cle metier
+---
 
-Avant, en Java pur:
+#### 8. Group by a business key
 
+❌ **Before:**
 ```java
-Map<String, List<User>> byDepartment = new LinkedHashMap<>();
+Map<String, List<User>> byDept = new LinkedHashMap<>();
 for (User user : users) {
-    String key = user.getDepartment();
-    byDepartment.computeIfAbsent(key, ignored -> new ArrayList<>()).add(user);
+    byDept.computeIfAbsent(user.getDepartment(), k -> new ArrayList<>()).add(user);
 }
 ```
 
-Apres, avec FluentJava:
-
+✅ **After:**
 ```java
-Map<String, List<User>> byDepartment = users.groupBy(User::getDepartment);
+Map<String, List<User>> byDept = users.groupBy(User::getDepartment);
 ```
 
-### 7. Paginer proprement une liste
+---
 
-Avant, en Java pur:
+#### 9. Paginate results safely
 
+❌ **Before:**
 ```java
-List<Order> pageItems = Collections.emptyList();
-int start = Math.max(0, (page - 1) * size);
+List<Order> page = Collections.emptyList();
+int start = Math.max(0, (pageNum - 1) * size);
 if (start < orders.size()) {
-    int end = Math.min(orders.size(), start + size);
-    pageItems = orders.subList(start, end);
+    page = orders.subList(start, Math.min(orders.size(), start + size));
 }
 ```
 
-Apres, avec FluentJava:
-
+✅ **After:**
 ```java
-List<Order> pageItems = orders.paginate(page, size);
+List<Order> page = orders.paginate(pageNum, size);
 ```
 
-### 8. Initialiser une valeur dans une map a la demande
+---
 
-Avant, en Java pur:
+#### 10. Sort and pick first match
 
+❌ **Before:**
 ```java
-List<String> errors = errorsByField.get("email");
+User cheapest = null;
+users.sort(Comparator.comparingDouble(User::getSalary));
+for (User u : users) {
+    if (u.getDepartment().equals("Engineering")) {
+        cheapest = u;
+        break;
+    }
+}
+```
+
+✅ **After:**
+```java
+User cheapest = users
+    .sortedBy(User::getSalary)
+    .firstOrNull(u -> u.getDepartment().equals("Engineering"));
+```
+
+---
+
+#### 11. Aggregate numeric values
+
+❌ **Before:**
+```java
+double total = 0;
+int count = 0;
+for (Order order : orders) {
+    total += order.getAmount();
+    count++;
+}
+double average = count > 0 ? total / count : 0;
+```
+
+✅ **After:**
+```java
+double total   = orders.sumOf(Order::getAmount);
+double average = orders.averageOf(Order::getAmount);
+```
+
+---
+
+### Map Operations
+
+#### 12. Lazy-initialize a map entry
+
+❌ **Before:**
+```java
+List<String> errors = errorMap.get("email");
 if (errors == null) {
     errors = new ArrayList<>();
-    errorsByField.put("email", errors);
+    errorMap.put("email", errors);
 }
-errors.add("Adresse invalide");
+errors.add("Invalid address");
 ```
 
-Apres, avec FluentJava:
-
+✅ **After:**
 ```java
-errorsByField.getOrPut("email", ArrayList::new).add("Adresse invalide");
+errorMap.getOrPut("email", ArrayList::new).add("Invalid address");
 ```
 
-### 9. Manipuler les dates metier sans verbosite
+---
 
-Avant, en Java pur:
+#### 13. Merge maps and filter keys
 
+❌ **Before:**
 ```java
-boolean businessDay = false;
-if (deliveryDate != null) {
-    DayOfWeek day = deliveryDate.getDayOfWeek();
-    businessDay = day != DayOfWeek.SATURDAY && day != DayOfWeek.SUNDAY;
-}
-
-LocalDate nextOpenDay = deliveryDate;
-if (nextOpenDay != null) {
-    do {
-        nextOpenDay = nextOpenDay.plusDays(1);
-    } while (nextOpenDay.getDayOfWeek() == DayOfWeek.SATURDAY
-            || nextOpenDay.getDayOfWeek() == DayOfWeek.SUNDAY);
+Map<String, Object> merged = new HashMap<>(defaults);
+merged.putAll(overrides);
+Map<String, Object> filtered = new LinkedHashMap<>();
+for (Map.Entry<String, Object> entry : merged.entrySet()) {
+    if (entry.getKey().startsWith("app.")) {
+        filtered.put(entry.getKey(), entry.getValue());
+    }
 }
 ```
 
-Apres, avec FluentJava:
-
+✅ **After:**
 ```java
-boolean businessDay = deliveryDate.isBusinessDay();
-LocalDate nextOpenDay = deliveryDate.nextWeekday();
+Map<String, Object> result = defaults
+    .merge(overrides)
+    .filterKeys(k -> k.startsWith("app."));
 ```
 
-### 10. Construire une validation metier lisible
+---
 
-Avant, en Java pur:
+### Number Operations
 
+#### 14. Clamp and round a value
+
+❌ **Before:**
+```java
+double price = rawPrice;
+if (price < 0) price = 0;
+if (price > 9999.99) price = 9999.99;
+price = Math.round(price * 100.0) / 100.0;
+```
+
+✅ **After:**
+```java
+double price = rawPrice.coerceIn(0, 9999.99).roundTo(2);
+```
+
+---
+
+#### 15. Number formatting and checks
+
+❌ **Before:**
+```java
+String label;
+if (position == 1) label = "1st";
+else if (position == 2) label = "2nd";
+else if (position == 3) label = "3rd";
+else label = position + "th";
+boolean even = position % 2 == 0;
+```
+
+✅ **After:**
+```java
+String label = position.toOrdinal();   // "1st", "2nd", "3rd", "4th"...
+boolean even = position.isEven();
+```
+
+---
+
+### Date Operations
+
+#### 16. Business day logic
+
+❌ **Before:**
+```java
+DayOfWeek dow = date.getDayOfWeek();
+boolean businessDay = dow != DayOfWeek.SATURDAY && dow != DayOfWeek.SUNDAY;
+
+LocalDate next = date;
+do {
+    next = next.plusDays(1);
+} while (next.getDayOfWeek() == DayOfWeek.SATURDAY
+      || next.getDayOfWeek() == DayOfWeek.SUNDAY);
+```
+
+✅ **After:**
+```java
+boolean businessDay = date.isBusinessDay();
+LocalDate next = date.nextWeekday();
+```
+
+---
+
+#### 17. Date calculations and formatting
+
+❌ **Before:**
+```java
+long days = ChronoUnit.DAYS.between(startDate, endDate);
+String formatted = startDate.format(DateTimeFormatter.ofPattern("dd/MM/yyyy"));
+```
+
+✅ **After:**
+```java
+long days = startDate.daysUntil(endDate);
+String formatted = startDate.format("dd/MM/yyyy");
+```
+
+---
+
+### Optional, Path & Validator
+
+#### 18. Optional pipeline
+
+❌ **Before:**
+```java
+String city = null;
+if (user != null && user.getAddress() != null) {
+    city = user.getAddress().getCity();
+}
+Optional<String> opt = Optional.ofNullable(city);
+String result = opt.map(String::toUpperCase).orElse(null);
+```
+
+✅ **After:**
+```java
+String result = city.toOptional()
+    .mapTo(String::toUpperCase)
+    .orNull();
+```
+
+---
+
+#### 19. File operations
+
+❌ **Before:**
+```java
+String content = Files.readString(path, StandardCharsets.UTF_8);
+Files.writeString(output, transformed, StandardCharsets.UTF_8,
+    StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
+```
+
+✅ **After:**
+```java
+String content = path.readText();
+output.writeText(transformed);
+```
+
+---
+
+#### 20. Fluent validation
+
+❌ **Before:**
 ```java
 List<String> errors = new ArrayList<>();
-if (name == null || name.isBlank()) {
-    errors.add("Le nom est obligatoire");
-}
-if (name != null && name.length() < 3) {
-    errors.add("Le nom doit contenir au moins 3 caracteres");
-}
-if (name != null && name.length() > 80) {
-    errors.add("Le nom est trop long");
-}
+if (name == null || name.isBlank()) errors.add("Name is required");
+if (name != null && name.length() < 3) errors.add("Name too short");
+if (name != null && name.length() > 80) errors.add("Name too long");
+if (email == null || !email.matches("^.+@.+\\..+$")) errors.add("Invalid email");
 ```
 
-Apres, avec FluentJava:
-
+✅ **After:**
 ```java
 List<String> errors = FluentValidator.ofString(name)
-        .notBlank("Le nom est obligatoire")
-        .minLength(3, "Le nom doit contenir au moins 3 caracteres")
-        .maxLength(80, "Le nom est trop long")
-        .validate();
+    .notBlank("Name is required")
+    .minLength(3, "Name too short")
+    .maxLength(80, "Name too long")
+    .validate();
 ```
 
-## Installation
+---
 
-FluentJava cible Java 17+.
+## Getting Started
 
-### Maven
+FluentJava requires **Java 17+**.
 
-Configuration recommandee pour beneficier de l'ecriture fluide directement dans le code source:
+### Maven (Recommended)
 
 ```xml
 <dependencies>
@@ -287,15 +526,10 @@ Configuration recommandee pour beneficier de l'ecriture fluide directement dans 
 </build>
 ```
 
-Avec cette configuration, vous ecrivez simplement:
+That's it. The Maven plugin auto-configures the compiler (`fork`, `-Xplugin`, `--add-exports`).
+No annotation processor. No bytecode agent. No config hell.
 
-```java
-String slug = title.trimToNull().toSlug();
-```
-
-### Gradle
-
-Groovy DSL:
+### Gradle — Groovy DSL
 
 ```groovy
 plugins {
@@ -308,7 +542,7 @@ dependencies {
 }
 ```
 
-Kotlin DSL:
+### Gradle — Kotlin DSL
 
 ```kotlin
 plugins {
@@ -321,405 +555,299 @@ dependencies {
 }
 ```
 
-### Plugin IntelliJ
-
-Avec le plugin FluentJava pour IntelliJ IDEA, l'experience IDE devient coherente avec l'experience de compilation:
-
-- autocompletion sur les methodes FluentJava;
-- navigation vers la methode source;
-- documentation inline;
-- disparition des faux positifs sur les appels fluides;
-- prise en charge des methodes creees dans votre propre projet avec `@FluentExtension`.
-
-Autrement dit, le plugin IDE ne se limite pas aux methodes livrees par la librairie: il sait aussi accompagner les extensions que vous ajoutez vous-meme.
-
-## Ajouter vos propres methodes avec @FluentExtension
-
-L'un des points forts de FluentJava est la possibilite d'ajouter des methodes fluides sur n'importe quelle classe utile a votre domaine: une classe metier, un type du JDK, ou un type tiers que vous utilisez deja.
-
-### Exemple
+Then just write:
 
 ```java
-package com.acme.extension;
+String slug = title.trimToNull().toSlug();
+List<String> names = users.mapTo(User::getName).filterNotNull();
+boolean isOpen = date.isBusinessDay();
+```
+
+---
+
+## IntelliJ IDEA Support
+
+The companion [**FluentJava IntelliJ Plugin**](../fluentjava-intellij-plugin/) makes the IDE experience seamless:
+
+| Feature | Description |
+|---------|-------------|
+| **Zero red squiggles** | Fluent methods injected via `PsiAugmentProvider` (same technique as Lombok) |
+| **Autocompletion** | Methods appear after `.` on all supported types |
+| **Go To Declaration** | `Ctrl+B` navigates to the utility class or your `@FluentExtension` source |
+| **Inline Documentation** | `Ctrl+Q` shows description, signature, and usage example |
+| **Auto-configuration** | `compiler.xml` is configured automatically on project open |
+| **Dynamic extensions** | Your project's `@FluentExtension` classes are discovered in real-time |
+
+> See the full [IntelliJ Plugin README](../fluentjava-intellij-plugin/README.md) for installation and details.
+
+---
+
+## Create Your Own Extension Methods
+
+One of FluentJava's most powerful features: add fluent methods on **any class** — JDK types, third-party libraries, or your own domain objects.
+
+### Example
+
+```java
+package com.acme.extensions;
 
 import io.fluentjava.annotation.FluentExtension;
 
 @FluentExtension(target = String.class)
-public final class StringMarketingExtensions {
+public final class MoneyExtensions {
 
-    private StringMarketingExtensions() {
-    }
+    private MoneyExtensions() {}
 
-    public static String bracketize(String value, String left, String right) {
-        if (value == null) {
-            return null;
-        }
-        return left + value + right;
+    /**
+     * Formats a numeric string as a price with currency symbol.
+     * "1299.99".toPrice("€") → "€1,299.99"
+     */
+    public static String toPrice(String value, String currencySymbol) {
+        if (value == null) return null;
+        double amount = Double.parseDouble(value);
+        return currencySymbol + String.format("%,.2f", amount);
     }
 }
 ```
 
-Ensuite, dans votre code:
+Usage — feels like a native method:
 
 ```java
-String label = productName.bracketize("[", "]");
+String display = "1299.99".toPrice("€");
+// → "€1,299.99"
 ```
 
-### Regles a respecter
+### Rules
 
-- la classe porte `@FluentExtension(target = VotreType.class)`;
-- les methodes doivent etre `public static`;
-- le premier parametre represente le receveur de l'appel fluide;
-- les autres parametres deviennent les arguments de la methode.
+| Rule | Description |
+|------|-------------|
+| **Annotation** | Class must be annotated `@FluentExtension(target = YourType.class)` |
+| **Methods** | Must be `public static` |
+| **First parameter** | Acts as the receiver (_the object before the dot_) |
+| **Other parameters** | Become the method arguments |
+| **Null safety** | Handle `null` receiver explicitly (recommended) |
 
-### Pourquoi c'est puissant
+### Why this is powerful
 
-- vous etendez le langage de votre projet sans wrapper ni inheritance artificielle;
-- vous gardez des signatures simples et testables;
-- vous pouvez construire une API vraiment metier, proche du vocabulaire de votre equipe;
-- le plugin IntelliJ supporte aussi ces methodes lorsqu'elles sont declarees dans le projet.
+- **Domain-specific DSLs** — Build a vocabulary that matches your team's language
+- **Testable** — Regular static methods, easy to unit test
+- **IDE-supported** — The IntelliJ plugin picks up `@FluentExtension` classes automatically
+- **No inheritance required** — Extend `final` classes, JDK types, third-party types
+- **Compile-time rewrite** — Same AST transformation as built-in methods
 
-## Utiliser FluentJava sans plugin
+---
 
-FluentJava reste utile meme si vous ne voulez pas activer l'ecriture fluide par plugin de compilation.
+## Use Without Compiler Plugin
 
-Vous pouvez appeler les classes statiques directement:
-
-```java
-import io.fluentjava.string.FluentString;
-
-String slug = FluentString.toSlug(FluentString.trimToNull(title));
-```
-
-Ou avec des imports statiques:
+FluentJava's runtime works as a **standalone utility library**. No compiler plugin required:
 
 ```java
-import static io.fluentjava.string.FluentString.toSlug;
-import static io.fluentjava.string.FluentString.trimToNull;
+import static io.fluentjava.string.FluentString.*;
+import static io.fluentjava.list.FluentList.*;
 
+// Direct static calls
 String slug = toSlug(trimToNull(title));
+String safeName = orDefault(name, "Anonymous");
+User first = firstOrNull(users);
 ```
 
-Dans ce mode, vous n'avez besoin que de la dependance runtime. Aucun plugin n'est necessaire dans le `pom.xml` ou dans le build Gradle.
+In this mode, you only need the `fluentjava-runtime` dependency — no plugin in your build config.
 
-## Reference API
+---
 
-### FluentObject
+## Complete API Reference
 
-- `also`: execute une action sur l'objet et retourne cet objet.
-- `let`: applique une fonction a l'objet et retourne le resultat.
-- `takeIf`: retourne l'objet si le predicat est vrai, sinon `null`.
-- `takeUnless`: retourne l'objet si le predicat est faux, sinon `null`.
-- `isNull`: verifie si l'objet est `null`.
-- `isNotNull`: verifie si l'objet n'est pas `null`.
-- `orElse`: retourne l'objet ou une valeur de secours s'il est `null`.
-- `orElseGet`: retourne l'objet ou calcule une valeur de secours via un `Supplier`.
-- `requireNotNull`: retourne l'objet s'il n'est pas `null`, sinon leve une exception.
-- `requireThat`: leve une exception si une condition est fausse.
+> 📖 **Full reference with examples:** [fluent-java.github.io/fluent-java-doc](https://fluent-java.github.io/fluent-java-doc/fluentjava-doc.html)
 
-### FluentString
+| Type | Class | Methods | Highlights |
+|------|-------|:-------:|------------|
+| `Object` | `FluentObject` | 10 | `also`, `let`, `takeIf`, `takeUnless`, `isNull`, `orElse`, `requireNotNull` |
+| `String` | `FluentString` | 60 | `trimToNull`, `toSlug`, `toIntOrNull`, `mask`, `isEmail`, `toCamelCase`, `toBase64`, `digest` |
+| `List` | `FluentList` | 51 | `filterBy`, `mapTo`, `groupBy`, `paginate`, `distinctBy`, `sumOf`, `sortedBy`, `chunked` |
+| `Map` | `FluentMap` | 22 | `getOrPut`, `filterKeys`, `mapValues`, `merge`, `invertMap`, `toSortedMap` |
+| `Number` | `FluentNumber` | 20 | `coerceIn`, `roundTo`, `isBetween`, `isEven`, `toOrdinal`, `isPrime`, `toHex` |
+| `LocalDate` / `LocalDateTime` | `FluentDate` | 34 | `isBusinessDay`, `nextWeekday`, `daysUntil`, `format`, `age`, `quarterOf` |
+| `Optional` | `FluentOptional` | 9 | `toOptional`, `orNull`, `mapTo`, `filterBy`, `orElseThrow` |
+| `Path` | `FluentPath` | 14 | `readText`, `writeText`, `exists`, `extension`, `listFiles`, `sizeInBytes` |
+| _Validation_ | `FluentValidator` | 17 | `notNull`, `notBlank`, `minLength`, `maxLength`, `matches`, `satisfies` |
+| _Error handling_ | `Try` | 13 | `Try.of`, `map`, `recover`, `orElse`, `onFailure`, `onSuccess` |
 
-- `isBlankSafe`: verifie si une chaine est `null`, vide ou composee uniquement d'espaces.
-- `isNullOrBlank`: alias lisible pour le meme besoin que `isBlankSafe`.
-- `isNullOrEmpty`: verifie si une chaine est `null` ou vide.
-- `orEmpty`: retourne une chaine vide quand la valeur est `null`.
-- `orDefault`: retourne une valeur par defaut quand la chaine est absente ou vide.
-- `trimToNull`: supprime les espaces en debut et fin puis retourne `null` si le resultat est vide.
-- `toIntOrNull`: convertit une chaine en `Integer`, ou retourne `null` en cas d'echec.
-- `toLongOrNull`: convertit une chaine en `Long`, ou retourne `null` en cas d'echec.
-- `toDoubleOrNull`: convertit une chaine en `Double`, ou retourne `null` en cas d'echec.
-- `toBooleanOrNull`: convertit une chaine vers un booleen tolerant, ou retourne `null`.
-- `toBigDecimalOrNull`: convertit une chaine en `BigDecimal`, ou retourne `null` en cas d'echec.
-- `take`: retourne les `n` premiers caracteres.
-- `takeLast`: retourne les `n` derniers caracteres.
-- `drop`: supprime les `n` premiers caracteres.
-- `dropLast`: supprime les `n` derniers caracteres.
-- `padStart`: complete la chaine a gauche jusqu'a une longueur donnee.
-- `padEnd`: complete la chaine a droite jusqu'a une longueur donnee.
-- `reversed`: inverse la chaine.
-- `capitalized`: met la premiere lettre en majuscule.
-- `decapitalized`: met la premiere lettre en minuscule.
-- `truncate`: tronque une chaine et ajoute un suffixe.
-- `removePrefix`: supprime un prefixe s'il est present.
-- `removeSuffix`: supprime un suffixe s'il est present.
-- `wrap`: entoure une chaine avec un motif au debut et a la fin.
-- `unwrap`: retire ce motif s'il encadre bien la chaine.
-- `repeat`: repete la chaine `n` fois.
-- `containsIgnoreCase`: cherche une sous-chaine sans sensibilite a la casse.
-- `startsWithIgnoreCase`: teste un prefixe sans sensibilite a la casse.
-- `endsWithIgnoreCase`: teste un suffixe sans sensibilite a la casse.
-- `countOccurrences`: compte le nombre d'occurrences d'une sous-chaine.
-- `isNumeric`: verifie qu'une chaine ne contient que des chiffres.
-- `isAlpha`: verifie qu'une chaine ne contient que des lettres.
-- `isAlphanumeric`: verifie qu'une chaine ne contient que des lettres ou des chiffres.
-- `isEmail`: detecte un format d'email simple.
-- `toSlug`: transforme une chaine en slug URL lisible.
-- `mask`: masque le debut d'une chaine en ne laissant visibles que les derniers caracteres.
-- `toCamelCase`: convertit une chaine en `camelCase`.
-- `toSnakeCase`: convertit une chaine en `snake_case`.
-- `left`: alias pratique pour recuperer la partie gauche d'une chaine.
-- `right`: alias pratique pour recuperer la partie droite d'une chaine.
-- `center`: centre une chaine dans une largeur donnee avec un caractere de remplissage.
-- `normalizeWhitespace`: normalise les suites d'espaces en un seul separateur.
-- `stripAccents`: retire les accents et diacritiques.
-- `ifBlank`: retourne une valeur par defaut si la chaine est blanche.
-- `ifEmpty`: retourne une valeur par defaut si la chaine est vide.
-- `splitToList`: decoupe une chaine en liste selon un delimiteur.
-- `lines`: decoupe une chaine ligne par ligne.
-- `toBase64`: encode une chaine en Base64.
-- `fromBase64`: decode une chaine Base64.
-- `ellipsize`: raccourcit une chaine avec des points de suspension.
-- `toPascalCase`: convertit une chaine en `PascalCase`.
-- `toKebabCase`: convertit une chaine en `kebab-case`.
-- `matchesPattern`: teste une chaine contre une expression reguliere.
-- `digest`: produit un condensat avec l'algorithme demande.
-- `toInitials`: extrait les initiales d'un texte.
-- `countWords`: compte les mots dans une chaine.
-- `isUrl`: detecte un format d'URL.
-- `isIPv4`: detecte une adresse IPv4.
-- `redact`: masque une valeur sensible de facon generique.
-- `toCurrency`: formate une chaine numerique comme montant monetaire.
+**Total: 250+ methods** across 10 utility classes.
 
-### FluentList
+<details>
+<summary><strong>FluentObject</strong> — 10 methods</summary>
 
-- `firstOrNull`: retourne le premier element ou `null`.
-- `isNullOrEmpty`: verifie si une liste est `null` ou vide.
-- `orEmpty`: retourne une liste vide si la valeur est `null`.
-- `firstOrNull(predicate)`: retourne le premier element correspondant a un predicat.
-- `lastOrNull`: retourne le dernier element ou `null`.
-- `lastOrNull(predicate)`: retourne le dernier element correspondant a un predicat.
-- `getOrNull`: recupere un element par index ou `null` hors limite.
-- `getOrDefault`: recupere un element par index ou une valeur par defaut.
-- `filterBy`: filtre une liste selon un predicat.
-- `mapTo`: transforme chaque element avec une fonction.
-- `flatMap`: transforme chaque element en liste puis aplatit le resultat.
-- `mapNotNull`: transforme puis elimine les resultats `null`.
-- `filterNotNull`: retire les elements `null`.
-- `distinctBy`: deduplique selon une cle calculee.
-- `sortedBy`: trie par cle croissante.
-- `sortedByDescending`: trie par cle decroissante.
-- `groupBy`: groupe une liste en `Map<K, List<T>>`.
-- `associateBy`: cree une map indexee par une cle calculee.
-- `partition`: separe la liste en deux groupes selon un predicat.
-- `chunked`: decoupe une liste en blocs de taille fixe.
-- `sumOf`: somme des valeurs numeriques produites par une fonction.
-- `maxByOrNull`: retourne l'element ayant la plus grande cle.
-- `minByOrNull`: retourne l'element ayant la plus petite cle.
-- `averageOf`: calcule une moyenne a partir d'un extracteur.
-- `countBy`: compte les elements correspondant a un predicat.
-- `none`: verifie qu'aucun element ne correspond.
-- `any`: verifie qu'au moins un element correspond.
-- `all`: verifie que tous les elements correspondent.
-- `takeWhile`: prend les elements tant qu'une condition reste vraie.
-- `dropWhile`: ignore les elements en tete tant qu'une condition reste vraie.
-- `paginate`: extrait une page de resultat de maniere sure.
-- `zip`: combine deux listes deux a deux.
-- `intersect`: retourne l'intersection de deux listes.
-- `subtract`: retire d'une liste les elements presents dans une autre.
-- `union`: fusionne deux listes sans doublon.
-- `second`: retourne le deuxieme element ou `null`.
-- `third`: retourne le troisieme element ou `null`.
-- `toSet`: convertit une liste en `Set` en conservant l'ordre d'insertion.
-- `associate`: construit une map a partir de fonctions de cle et de valeur.
-- `indexOfFirst`: retourne l'index du premier element correspondant.
-- `indexOfLast`: retourne l'index du dernier element correspondant.
-- `flatten`: aplatit une liste de listes.
-- `randomOrNull`: retourne un element aleatoire ou `null`.
-- `forEachIndexed`: itere en fournissant index et valeur.
-- `toCsv`: joint les elements en texte CSV simple.
-- `frequencies`: compte les occurrences de chaque element.
-- `shuffled`: retourne une copie melangee de la liste.
-- `sample`: retourne un echantillon aleatoire sans repetition.
-- `windowed`: produit des fenetres glissantes de taille fixe.
-- `sumOfInt`: somme des valeurs entieres produites par un extracteur.
-- `sumOfLong`: somme des valeurs longues produites par un extracteur.
+`also`, `let`, `takeIf`, `takeUnless`, `isNull`, `isNotNull`, `orElse`, `orElseGet`, `requireNotNull`, `requireThat`
+</details>
 
-### FluentMap
+<details>
+<summary><strong>FluentString</strong> — 60 methods</summary>
 
-- `isNullOrEmpty`: verifie si une map est `null` ou vide.
-- `orEmpty`: retourne une map vide si la valeur est `null`.
-- `getOrEmpty`: retourne une valeur texte ou une chaine vide si absente.
-- `getOrNull`: recupere une valeur ou `null` si absente.
-- `filterKeys`: filtre une map sur ses cles.
-- `filterValues`: filtre une map sur ses valeurs.
-- `mapValues`: transforme les valeurs en gardant les memes cles.
-- `mapKeys`: transforme les cles en gardant les memes valeurs.
-- `any`: verifie si au moins une entree correspond a un predicat.
-- `all`: verifie si toutes les entrees correspondent.
-- `none`: verifie qu'aucune entree ne correspond.
-- `count`: compte les entrees correspondant a un predicat.
-- `toList`: convertit les entrees d'une map en liste.
-- `merge`: fusionne deux maps, la seconde prenant le dessus en cas de collision.
-- `invertMap`: inverse les cles et les valeurs.
-- `getOrPut`: retourne une valeur existante ou l'initialise a la demande.
-- `forEach`: parcourt les entrees avec une action `(key, value)`.
-- `toSortedMap`: retourne une map triee par ordre naturel des cles.
-- `containsAllKeys`: verifie la presence de plusieurs cles.
-- `flatMapValues`: transforme chaque valeur en liste de valeurs derivees.
-- `entries`: retourne les entrees sous forme de liste.
-- `filterByValue`: alias orientee lisibilite pour filtrer par valeur.
+**Null-safety:** `isBlankSafe`, `isNullOrBlank`, `isNullOrEmpty`, `orEmpty`, `orDefault`, `trimToNull`, `ifBlank`, `ifEmpty`
 
-### FluentNumber
+**Parsing:** `toIntOrNull`, `toLongOrNull`, `toDoubleOrNull`, `toBooleanOrNull`, `toBigDecimalOrNull`
 
-- `coerceIn`: force une valeur a rester dans un intervalle.
-- `coerceAtLeast`: impose une borne minimale.
-- `coerceAtMost`: impose une borne maximale.
-- `isBetween`: teste si une valeur appartient a un intervalle.
-- `isPositive`: verifie si un nombre est strictement positif.
-- `isNegative`: verifie si un nombre est strictement negatif.
-- `isZero`: verifie si un nombre vaut zero.
-- `roundTo`: arrondit une valeur a un nombre de decimales donne.
-- `percentOf`: calcule un pourcentage.
-- `isEven`: verifie si un entier est pair.
-- `isOdd`: verifie si un entier est impair.
-- `toOrdinal`: formate un entier en ordinal anglais (`1st`, `2nd`, `3rd`, ...).
-- `toPercentString`: formate un nombre en pourcentage texte.
-- `clamp`: alias pratique de limitation a un intervalle.
-- `isPrime`: verifie si un entier est premier.
-- `factorial`: calcule une factorielle.
-- `digits`: retourne les chiffres d'un entier sous forme de liste.
-- `toBinary`: retourne la representation binaire d'un entier.
-- `toHex`: retourne la representation hexadecimale d'un entier.
-- `toOctal`: retourne la representation octale d'un entier.
+**Slicing & padding:** `take`, `takeLast`, `drop`, `dropLast`, `left`, `right`, `padStart`, `padEnd`, `center`, `truncate`, `ellipsize`
 
-### FluentDate
+**Transformation:** `reversed`, `capitalized`, `decapitalized`, `removePrefix`, `removeSuffix`, `wrap`, `unwrap`, `repeat`, `normalizeWhitespace`, `stripAccents`, `toInitials`, `redact`, `toCurrency`, `toBase64`, `fromBase64`, `digest`
 
-- `isWeekend`: verifie si une date tombe un samedi ou un dimanche.
-- `isWeekday`: verifie si une date est un jour de semaine.
-- `isToday`: verifie si une date correspond a aujourd'hui.
-- `isPast`: verifie si une date est dans le passe.
-- `isFuture`: verifie si une date est dans le futur.
-- `isLeapYear`: verifie si l'annee de la date est bissextile.
-- `daysUntil`: calcule un nombre de jours entre deux dates.
-- `monthsUntil`: calcule un nombre de mois entre deux dates.
-- `yearsUntilNow`: calcule des annees completes jusqu'a aujourd'hui.
-- `format`: formate une `LocalDate` ou une `LocalDateTime` selon un pattern.
-- `atStartOfDay`: convertit une date en debut de jour.
-- `atEndOfDay`: convertit une date en fin de jour.
-- `toEpochMillis`: convertit une `LocalDateTime` en millisecondes epoch.
-- `fromEpochMillis`: convertit des millisecondes epoch en `LocalDateTime`.
-- `isBefore`: compare deux dates ou deux `LocalDateTime`.
-- `isAfter`: compare deux dates ou deux `LocalDateTime`.
-- `isBetween`: teste l'appartenance a une plage inclusive pour date ou date-heure.
-- `startOfWeek`: retourne le debut de semaine ISO.
-- `endOfWeek`: retourne la fin de semaine ISO.
-- `startOfMonth`: retourne le premier jour du mois.
-- `endOfMonth`: retourne le dernier jour du mois.
-- `startOfYear`: retourne le premier jour de l'annee.
-- `endOfYear`: retourne le dernier jour de l'annee.
-- `nextWeekday`: retourne le prochain jour ouvrable.
-- `age`: calcule un age en annees completes.
-- `isBusinessDay`: alias metier pour jour ouvrable.
-- `toLocalDate`: parse une chaine vers `LocalDate`.
-- `toLocalDateTime`: parse une chaine vers `LocalDateTime`.
-- `quarterOf`: retourne le trimestre de l'annee.
-- `weekOfYear`: retourne le numero de semaine ISO.
+**Case conversion:** `toCamelCase`, `toSnakeCase`, `toPascalCase`, `toKebabCase`, `toSlug`
 
-### FluentOptional
+**Search & matching:** `containsIgnoreCase`, `startsWithIgnoreCase`, `endsWithIgnoreCase`, `countOccurrences`, `matchesPattern`, `countWords`
 
-- `toOptional`: cree un `Optional` a partir d'une valeur nullable.
-- `orNull`: extrait la valeur ou retourne `null`.
-- `orEmpty`: extrait une chaine ou retourne une chaine vide.
-- `ifPresent`: execute une action si une valeur est presente.
-- `mapTo`: transforme un `Optional` en un autre `Optional`.
-- `filterBy`: filtre un `Optional` avec un predicat.
-- `isPresent`: teste la presence d'une valeur.
-- `isEmpty`: teste l'absence de valeur.
-- `orElseThrow`: extrait la valeur ou leve une exception explicite.
+**Splitting:** `splitToList`, `lines`
 
-### FluentPath
+**Validation:** `isNumeric`, `isAlpha`, `isAlphanumeric`, `isEmail`, `isUrl`, `isIPv4`
 
-- `readText`: lit un fichier texte en UTF-8.
-- `writeText`: ecrit un fichier texte en UTF-8.
-- `readLines`: lit toutes les lignes d'un fichier.
-- `exists`: verifie qu'un chemin existe.
-- `extension`: recupere l'extension d'un fichier.
-- `nameWithoutExtension`: recupere le nom sans extension.
-- `fileName`: recupere le nom du fichier.
-- `copyTo`: copie un fichier vers une destination.
-- `moveTo`: deplace un fichier vers une destination.
-- `deleteIfExists`: supprime un chemin si present.
-- `sizeInBytes`: retourne la taille d'un fichier.
-- `isDirectory`: verifie si le chemin represente un repertoire.
-- `listFiles`: liste le contenu d'un repertoire.
-- `createDirectories`: cree un repertoire et ses parents si necessaire.
+**Security:** `mask`
+</details>
 
-### FluentValidator
+<details>
+<summary><strong>FluentList</strong> — 51 methods</summary>
 
-- `of`: cree un validateur pour une valeur generique.
-- `ofString`: cree un validateur specialise pour une chaine.
-- `notNull`: ajoute une regle de non-nullite.
-- `satisfies`: ajoute une regle personnalisee.
-- `notBlank`: ajoute une regle de chaine non blanche.
-- `minLength`: ajoute une longueur minimale.
-- `maxLength`: ajoute une longueur maximale.
-- `matches`: ajoute une contrainte regex.
-- `notEmpty`: ajoute une contrainte de non-vide.
-- `min`: ajoute une borne minimale numerique.
-- `max`: ajoute une borne maximale numerique.
-- `positive`: exige un nombre strictement positif.
-- `validate`: execute les regles et retourne la liste des erreurs.
-- `isValid`: retourne `true` si aucune regle n'echoue.
-- `throwIfInvalid`: leve une exception si la validation echoue.
-- `throwIfInvalid(exceptionFn)`: leve une exception personnalisee a partir des erreurs.
-- `firstError`: retourne le premier message d'erreur.
+**Null-safety:** `isNullOrEmpty`, `orEmpty`
 
-### Try
+**Access:** `firstOrNull`, `firstOrNull(predicate)`, `lastOrNull`, `lastOrNull(predicate)`, `second`, `third`, `getOrNull`, `getOrDefault`, `randomOrNull`
 
-`Try` est une utilite complementaire pour gerer des erreurs de facon plus fluide:
+**Filter & map:** `filterBy`, `mapTo`, `flatMap`, `mapNotNull`, `filterNotNull`, `forEachIndexed`
 
-- `of`: execute un supplier et capture une erreur eventuelle.
-- `isSuccess`: verifie si l'execution a reussi.
-- `isFailure`: verifie si l'execution a echoue.
-- `orNull`: retourne la valeur ou `null` en cas d'echec.
-- `orElse`: retourne une valeur de secours.
-- `orElseGet`: calcule une valeur de secours a la demande.
-- `orElseThrow`: relance l'erreur ou retourne la valeur.
-- `map`: transforme la valeur en cas de succes.
-- `flatMap`: chaine des operations `Try`.
-- `recover`: reconstruit une valeur apres une erreur.
-- `onSuccess`: execute un effet de bord sur succes.
-- `onFailure`: execute un effet de bord sur echec.
-- `getError`: retourne l'erreur capturee.
+**Sort & dedup:** `sortedBy`, `sortedByDescending`, `distinctBy`, `shuffled`
 
-## Partie technique
+**Grouping:** `groupBy`, `associateBy`, `associate`, `partition`, `frequencies`
 
-FluentJava repose sur une architecture simple et robuste:
+**Aggregation:** `sumOf`, `sumOfInt`, `sumOfLong`, `averageOf`, `maxByOrNull`, `minByOrNull`, `countBy`
 
-- le runtime expose des methodes statiques pures, organisees par type fonctionnel (`FluentString`, `FluentList`, `FluentMap`, etc.);
-- le plugin de compilation reconnait les appels fluides et les reecrit vers ces methodes statiques;
-- l'API runtime reste utilisable telle quelle, meme sans activer l'ecriture fluide;
-- les extensions de projet marquees avec `@FluentExtension` sont decouvertes pendant la compilation pour enrichir le langage du projet;
-- le bytecode final reste lisible et previsible, ce qui simplifie debug, perf, revue de code et maintenance long terme.
+**Predicates:** `none`, `any`, `all`
 
-En pratique, FluentJava ne cherche pas a transformer Java en autre chose. La librairie cherche plutot a rendre Java plus agreable dans les endroits ou il devient repetitif, sans imposer un modele exotique.
+**Slicing:** `takeWhile`, `dropWhile`, `paginate`, `chunked`, `windowed`, `sample`
+
+**Set ops:** `zip`, `intersect`, `subtract`, `union`, `toSet`
+
+**Other:** `indexOfFirst`, `indexOfLast`, `flatten`, `toCsv`
+</details>
+
+<details>
+<summary><strong>FluentMap</strong> — 22 methods</summary>
+
+`isNullOrEmpty`, `orEmpty`, `getOrEmpty`, `getOrNull`, `getOrPut`, `filterKeys`, `filterValues`, `filterByValue`, `mapValues`, `mapKeys`, `any`, `all`, `none`, `count`, `toList`, `merge`, `invertMap`, `forEach`, `toSortedMap`, `containsAllKeys`, `flatMapValues`, `entries`
+</details>
+
+<details>
+<summary><strong>FluentNumber</strong> — 20 methods</summary>
+
+`coerceIn`, `coerceAtLeast`, `coerceAtMost`, `isBetween`, `isPositive`, `isNegative`, `isZero`, `roundTo`, `percentOf`, `isEven`, `isOdd`, `toOrdinal`, `toPercentString`, `clamp`, `isPrime`, `factorial`, `digits`, `toBinary`, `toHex`, `toOctal`
+</details>
+
+<details>
+<summary><strong>FluentDate</strong> — 34 methods</summary>
+
+`isWeekend`, `isWeekday`, `isToday`, `isPast`, `isFuture`, `isLeapYear`, `daysUntil`, `monthsUntil`, `yearsUntilNow`, `format`, `atStartOfDay`, `atEndOfDay`, `toEpochMillis`, `fromEpochMillis`, `isBefore`, `isAfter`, `isBetween`, `startOfWeek`, `endOfWeek`, `startOfMonth`, `endOfMonth`, `startOfYear`, `endOfYear`, `nextWeekday`, `age`, `isBusinessDay`, `toLocalDate`, `toLocalDateTime`, `quarterOf`, `weekOfYear`
+</details>
+
+<details>
+<summary><strong>FluentOptional</strong> — 9 methods</summary>
+
+`toOptional`, `orNull`, `orEmpty`, `ifPresent`, `mapTo`, `filterBy`, `isPresent`, `isEmpty`, `orElseThrow`
+</details>
+
+<details>
+<summary><strong>FluentPath</strong> — 14 methods</summary>
+
+`readText`, `writeText`, `readLines`, `exists`, `extension`, `nameWithoutExtension`, `fileName`, `copyTo`, `moveTo`, `deleteIfExists`, `sizeInBytes`, `isDirectory`, `listFiles`, `createDirectories`
+</details>
+
+<details>
+<summary><strong>FluentValidator</strong> — 17 methods</summary>
+
+`of`, `ofString`, `notNull`, `satisfies`, `notBlank`, `minLength`, `maxLength`, `matches`, `notEmpty`, `min`, `max`, `positive`, `validate`, `isValid`, `throwIfInvalid`, `throwIfInvalid(exceptionFn)`, `firstError`
+</details>
+
+<details>
+<summary><strong>Try</strong> — 13 methods</summary>
+
+`Try.of`, `isSuccess`, `isFailure`, `orNull`, `orElse`, `orElseGet`, `orElseThrow`, `map`, `flatMap`, `recover`, `onSuccess`, `onFailure`, `getError`
+</details>
+
+---
+
+## How It Works
+
+```
+   What you write              What javac sees              What runs in production
+┌─────────────────────┐   ┌──────────────────────────┐   ┌──────────────────────────────┐
+│ title.trimToNull()  │ → │ FluentString.trimToNull  │ → │ invokestatic FluentString    │
+│      .toSlug()      │   │  (FluentString.toSlug    │   │   .trimToNull(String)        │
+│                     │   │   (title))               │   │ invokestatic FluentString    │
+│                     │   │                          │   │   .toSlug(String)            │
+└─────────────────────┘   └──────────────────────────┘   └──────────────────────────────┘
+       Source                   After AST rewrite                  Bytecode
+```
+
+1. **PARSE phase** — The javac plugin intercepts the AST after parsing, before type resolution
+2. **Rewrite** — `receiver.method(args)` becomes `method(receiver, args)` + static imports injected
+3. **Compile** — javac resolves types against the rewritten AST → clean `invokestatic` bytecode
+
+Same proven technique used by **Lombok**, **Error Prone**, and **Checker Framework**.
+
+### Modules
+
+| Module | Role |
+|--------|------|
+| `fluentjava-runtime` | Production JAR — static utility methods + `@FluentExtension` annotation |
+| `fluentjava-plugin` | Javac plugin — AST rewrite at compile time _(never deployed to production)_ |
+| `fluentjava-maven-plugin` | Maven integration — auto-configures the compiler |
+| `fluentjava-gradle-plugin` | Gradle integration — auto-configures the compiler |
+
+### Security guarantees
+
+| Property | Guarantee |
+|----------|-----------|
+| **Runtime reflection** | Zero |
+| **JVM agents** | Zero |
+| **`sun.misc.Unsafe`** | Zero |
+| **`--add-opens` at runtime** | Zero |
+| **Plugin scope** | `provided` — never in production JAR |
+
+---
 
 ## FAQ
 
-### Est-ce que FluentJava ajoute un cout runtime ?
+**Does FluentJava add runtime overhead?**
+No. The compiled bytecode is plain `invokestatic` calls — identical to calling utility methods manually.
 
-Non. Le resultat final repose sur des appels statiques classiques.
+**Do I have to use the compiler plugin?**
+No. You can use FluentJava purely as a static utility library with direct calls like `FluentString.trimToNull(s)`.
 
-### Est-ce que je suis oblige d'utiliser le plugin ?
+**Can I add my own fluent methods?**
+Yes. `@FluentExtension` lets you add methods on any class — JDK, third-party, or your own.
 
-Non. Vous pouvez utiliser FluentJava uniquement comme librairie de methodes statiques.
+**Does the IDE understand my custom extensions?**
+Yes. The IntelliJ plugin discovers `@FluentExtension` classes from your project automatically.
 
-### Est-ce que je peux ajouter mes propres methodes fluides ?
+**Does FluentJava replace JDK APIs?**
+No. It complements them with a convenience layer for common operations.
 
-Oui. `@FluentExtension` est prevu pour cela, sur n'importe quelle classe cible pertinente pour votre projet.
+**Is it safe for enterprise codebases?**
+Yes. Compile-time only, auditable, no bytecode manipulation at runtime, no agents, no reflection.
 
-### Est-ce que l'IDE peut comprendre mes extensions maison ?
+**Which Java version is required?**
+Java 17 or higher (LTS).
 
-Oui, avec le plugin IntelliJ FluentJava, y compris pour les methodes declarees directement dans votre projet.
+**Does it work with Lombok?**
+Yes. Both use javac plugin APIs and coexist without conflict.
 
-### Est-ce que FluentJava remplace les API standards du JDK ?
+---
 
-Non. FluentJava les complete avec une couche de confort et de lisibilite.
+## License
 
-### Est-ce adapte a un codebase entreprise ?
+Apache License 2.0 — see [LICENSE](LICENSE).
 
-Oui, justement parce que l'approche reste compile-time, testable, lisible et facile a auditer.
+---
 
-## Licence
+<div align="center">
 
-FluentJava est distribue sous licence Apache License 2.0. Voir le fichier `LICENSE` pour le texte complet.
+**[📖 Documentation](https://fluent-java.github.io/fluent-java-doc/fluentjava-doc.html)** · **[🔌 IntelliJ Plugin](../fluentjava-intellij-plugin/)**
+
+_FluentJava — Because Java deserves extension methods._
+
+</div>
